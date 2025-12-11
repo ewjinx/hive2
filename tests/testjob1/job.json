@@ -1,0 +1,5 @@
+{
+    "command": "python3 main.py",
+    "cpu": 1,
+    "memory": "512m"
+}

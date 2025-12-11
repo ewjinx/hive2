@@ -7,7 +7,7 @@ def get(db: Session, id: int):
     return db.query(Job).filter(Job.id == id).first()
 
 def get_multi_by_owner(db: Session, owner_id: int, skip: int = 0, limit: int = 100):
-    return db.query(Job).filter(Job.owner_id == owner_id).offset(skip).limit(limit).all()
+    return db.query(Job).filter(Job.owner_id == owner_id).order_by(Job.created_at.desc()).offset(skip).limit(limit).all()
 
 def create(db: Session, *, obj_in: JobCreate, owner_id: int):
     db_obj = Job(

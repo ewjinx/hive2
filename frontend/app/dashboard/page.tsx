@@ -33,7 +33,7 @@ export default function Dashboard() {
                 running: jobs.filter((j: any) => j.status === 'running').length,
                 agents: agents.length
             });
-            setRecentJobs(jobs.slice(0, 5));
+            setRecentJobs(jobs);
         } catch (e) {
             console.error(e);
         }
@@ -80,7 +80,7 @@ export default function Dashboard() {
             </div>
 
             <h2 className="text-xl font-bold mb-4">Recent Jobs</h2>
-            <div>
+            <div className="max-h-[600px] overflow-y-auto pr-2">
                 {recentJobs.map((job: any) => (
                     <JobCard key={job.id} job={job} />
                 ))}
