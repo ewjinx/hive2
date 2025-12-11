@@ -53,6 +53,10 @@ python -m venv venv
 # Linux: source venv/bin/activate
 pip install -r requirements.txt
 
+# Environment Setup
+# Linux: cp .env.example .env
+# Windows: copy .env.example .env
+
 # Run Migrations (First time) - *Requires alembic configured*
 # alembic upgrade head 
 # For this demo, tables are created on startup if you add `Base.metadata.create_all(bind=engine)` in main.py or similar.
