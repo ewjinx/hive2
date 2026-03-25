@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.models.job import Job, JobLog
-from app.schemas.job import JobCreate, JobUpdate, JobLogCreate
+from app.models.job import Job, JobLog, PipelineStep
+from app.schemas.job import JobCreate, JobUpdate, JobLogCreate, PipelineStepCreate, PipelineStepUpdate
 
 def get(db: Session, id: int):
     return db.query(Job).filter(Job.id == id).first()
@@ -21,6 +21,21 @@ def create(db: Session, *, obj_in: JobCreate, owner_id: int):
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
+
+    # Create pipeline steps if provided
+    if obj_in.steps:
+        for index, step in enumerate(obj_in.steps):
+            step_obj = PipelineStep(
+                job_id=db_obj.id,
+                step_index=index,
+                name=step.name,
+                command=step.command,
+                status="pending"
+            )
+            db.add(step_obj)
+        db.commit()
+        db.refresh(db_obj)
+
     return db_obj
 
 def update_status(db: Session, *, db_obj: Job, status: str):
@@ -48,3 +63,30 @@ def get_multi_by_agent(db: Session, agent_id: int, status: str = None):
     if status:
         query = query.filter(Job.status == status)
     return query.all()
+
+# --- Pipeline Step Operations ---
+
+def get_pipeline_steps(db: Session, job_id: int) -> List[PipelineStep]:
+    return db.query(PipelineStep).filter(
+        PipelineStep.job_id == job_id
+    ).order_by(PipelineStep.step_index).all()
+
+def get_pipeline_step_by_index(db: Session, job_id: int, step_index: int) -> Optional[PipelineStep]:
+    return db.query(PipelineStep).filter(
+        PipelineStep.job_id == job_id,
+        PipelineStep.step_index == step_index
+    ).first()
+
+def update_pipeline_step(db: Session, *, db_obj: PipelineStep, obj_in: PipelineStepUpdate) -> PipelineStep:
+    if obj_in.status is not None:
+        db_obj.status = obj_in.status
+    if obj_in.started_at is not None:
+        db_obj.started_at = obj_in.started_at
+    if obj_in.finished_at is not None:
+        db_obj.finished_at = obj_in.finished_at
+    if obj_in.log is not None:
+        db_obj.log = obj_in.log
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj

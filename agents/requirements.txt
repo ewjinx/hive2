@@ -2,3 +2,7 @@ requests
 docker
 psutil
 python-dotenv
+pystray
+Pillow
+pyinstaller
+

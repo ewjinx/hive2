@@ -1,0 +1,42 @@
+# Desktop Agent V2 Overhaul Plan
+
+## Requested Features
+1. **Multi-Agent Support** 
+   - Move away from the 1-to-1 account limit. Users can host multiple separate agent instances under a single Hive account.
+   - The desktop app will act as a "Hypervisor" node manager showing all agents in a list.
+2. **Resource & Power Controls**
+   - Individual Start/Stop toggles for each agent.
+   - Resource allocation sliders (vCPU cores, RAM limits) per agent directly within the desktop UI.
+3. **Web Sync Integration**
+   - Any config changes made in the desktop app (resource caps, online/offline status) will immediately sync via a WebSocket or REST API to the Hive web dashboard.
+4. **Authentication System**
+   - A proper Login/Logout flow using the Hive web credentials (email + password -> JWT Token) instead of just storing an email locally.
+5. **Widget-Style Design**
+   - A compact, non-intrusive floating window instead of a massive application screen. 
+6. **Dynamic System Tray Status**
+   - Animated/rotating icon while jobs are actively processing.
+   - Yellow icon when idle (awaiting jobs).
+   - Grey/Red icon when offline.
+
+## Recommended Additional Features for a Premium Widget App
+- **Modern UI Framework (CustomTkinter)**: Move away from standard, blocky Tkinter to a sleek, dark-mode styling with rounded corners to make it feel like a premium Web3/Cloud application.
+- **Background "Snooze" Mode**: An option to quickly pause all agents for 1, 2, or 4 hours so the user can play memory-heavy games or do intense rendering without having to shut the app down.
+- **Mini-Dashboard / Payout Ticker**: Show live Hive credit earnings directly inside the desktop widget so the user feels rewarded without opening the browser.
+- **Native OS Notifications**: Pop a small Windows toast notification when a job completes or when a payout is awarded.
+- **Minimize to Tray**: The app window should gracefully slide out of the way when you click off it, only surfacing when double-clicked from the system tray.
+
+## Phase Breakdown
+
+### Phase 1: Authentication & Backend Upgrade
+- [ ] Add JWT authentication endpoints for the Desktop Agent (so it has a Bearer token, not just an email).
+- [ ] Drop the 1-to-1 constraint in `/api/v1/agents` logic. Allow users to `POST` new agent instances seamlessly.
+- [ ] Implement `PATCH /api/v1/agents/{id}` for live resource/spec syncing.
+
+### Phase 2: Core Agent Engine Rewrite
+- [ ] Convert `main.py` from a single blocking while-loop to an internal Manager loop that can spawn and monitor multiple isolated `run_job` threads simultaneously.
+- [ ] Update local `agent_settings.json` schema to securely store a JWT access token and a list of configured Agent IDs/Specs.
+
+### Phase 3: Modern UI & Widget Framework
+- [ ] Swap `tkinter` for `customtkinter`.
+- [ ] Design the compact Widget Layout (Header: Login/Earnings, Body: Scrollable agent list with toggles and sliders).
+- [ ] Add animated tray icons for the executing phases.

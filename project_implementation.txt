@@ -1,0 +1,408 @@
+================================================================================
+                  HIVE: PEER-POWERED CI/CD - PROJECT IMPLEMENTATION SUMMARY
+================================================================================
+
+Project: Hive - A decentralized compute-sharing platform where users submit jobs
+(as Zip files) to be executed by a network of peer agents running Docker.
+
+Architecture: Next.js Frontend → FastAPI Backend → PostgreSQL/Redis
+              Python Agent Daemons → Docker Engine
+
+================================================================================
+1. INFRASTRUCTURE & DEVOPS
+================================================================================
+
+1.1 Docker Compose (docker-compose.yml)
+    - PostgreSQL 15 Alpine container ("hive_postgres") on port 5432
+    - Redis 7 Alpine container ("hive_redis") on port 6379
+    - Persistent volume for PostgreSQL data
+
+1.2 Backend Dockerfile
+    - Python-based container for the FastAPI backend
+
+1.3 Frontend Dockerfile
+    - Node.js-based container for the Next.js frontend
+
+1.4 Environment Configuration
+    - Backend .env with: DATABASE_URL, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REDIS_URL
+    - Backend CORS configured for localhost:3000 and localhost:8000
+    - Frontend .env with: NEXT_PUBLIC_API_URL
+    - Agent config.py with: API_URL, AGENT_NAME
+
+1.5 Database Migrations
+    - Alembic configured for database migrations
+    - Auto table creation on startup (Base.metadata.create_all)
+
+================================================================================
+2. BACKEND (FastAPI Coordinator) - /backend
+================================================================================
+
+2.1 Application Entry (app/main.py)
+    - FastAPI app with CORS middleware
+    - Startup event: auto-creates database tables
+    - Startup event: seeds a "system@hive.io" superuser (for agent operations)
+    - Startup event: launches async scheduler loop (runs every 5 seconds)
+    - Root endpoint returning welcome message
+    - All API routes mounted under /api/v1
+
+2.2 Database Models (app/models/)
+
+    User (user.py):
+        - id, email (unique), hashed_password, is_active, is_superuser
+        - balance (Float, default 100.0 credits)
+        - Relationships: jobs, transactions
+
+    Job (job.py):
+        - id, owner_id (FK→users), agent_id (FK→agents, nullable)
+        - status (queued/running/success/failed)
+        - cpu_req (integer, default 1 core)
+        - ram_req (float, default 1.0 GB)
+        - build_command (optional), run_command (required)
+        - created_at, started_at, finished_at (timestamps)
+        - cost (float, accumulates actual cost)
+        - Relationships: owner, agent, logs
+
+    JobLog (job.py):
+        - id, job_id (FK→jobs), content (text)
+        - Relationship: job
+
+    Agent (agent.py):
+        - id, name, owner_id (FK→users)
+        - cpu_cores, ram_gb (hardware specs)
+        - status (offline/idle/busy)
+        - last_heartbeat (timestamp, auto-updates)
+        - current_cpu_usage, current_ram_usage (real-time metrics)
+        - Relationship: jobs
+
+    Transaction (transaction.py):
+        - id, user_id (FK→users)
+        - amount (negative=spend, positive=earn/deposit)
+        - description, timestamp
+        - Relationship: user
+
+2.3 Pydantic Schemas (app/schemas/)
+
+    User schemas: UserBase, UserCreate (email+password), UserUpdate, User (response), UserInDB
+    Job schemas: JobBase, JobCreate, JobUpdate (status/timestamps/cost), Job (response)
+    JobLog schemas: JobLogBase, JobLogCreate, JobLog (response)
+    Agent schemas: AgentBase, AgentCreate (name+cpu+ram), AgentUpdate, AgentHeartbeat, Agent (response)
+    Token schemas: Token (access_token + token_type), TokenPayload (sub field)
+
+2.4 CRUD Operations (app/crud/)
+
+    crud_user.py:
+        - get_by_email: Find user by email
+        - create: Create user with hashed password and 100.0 starting balance
+
+    crud_job.py:
+        - get: Get job by ID
+        - get_multi_by_owner: Get jobs by owner (ordered by created_at DESC)
+        - get_multi_by_agent: Get jobs assigned to agent (with optional status filter)
+        - create: Create new job with "queued" status
+        - update_status: Update job status
+        - create_log: Append log entry to job
+        - get_logs: Get all logs for a job
+
+    crud_agent.py:
+        - get: Get agent by ID
+        - get_multi: List agents with pagination
+        - create: Register new agent (status="idle", initial heartbeat)
+        - update_heartbeat: Update agent stats (cpu/ram usage, status, heartbeat time)
+        - get_active_agents: Query all agents
+
+2.5 API Endpoints (app/api/endpoints/)
+
+    Auth (auth.py):
+        POST /login/access-token
+        - OAuth2 password flow login
+        - Returns JWT access token (HS256, configurable expiry)
+        - Validates email + bcrypt password hash
+
+    Users (users.py):
+        POST /users/           - Create new user (with duplicate email check)
+        GET  /users/me         - Get current authenticated user profile
+
+    Jobs (jobs.py):
+        POST /jobs/            - Submit job: upload zip file + build/run commands + CPU/RAM requirements
+        GET  /jobs/            - List jobs (by owner or by agent_id+status)
+        GET  /jobs/{id}        - Get job detail (with permission check)
+        PUT  /jobs/{id}        - Update job status/timestamps (for agents to report results)
+        GET  /jobs/{id}/logs   - Get job execution logs
+        POST /jobs/{id}/logs   - Append log to job (used by agents)
+        GET  /jobs/{id}/download - Download uploaded zip file
+
+    Agents (agents.py):
+        GET  /agents/          - List all agents (requires auth)
+        POST /agents/          - Register new agent (assigns to system user)
+        POST /agents/{id}/heartbeat - Agent heartbeat (updates stats + timestamp)
+
+    Analytics (analytics.py):
+        GET  /analytics        - Returns system analytics (currently mocked data)
+            - Job distribution (pending/running/completed/failed)
+            - Duration metrics over time
+            - Resource usage over time
+            - Credit summary (earned/spent)
+
+2.6 Authentication & Security (app/core/)
+
+    config.py:
+        - Pydantic Settings: PROJECT_NAME, API_V1_STR, CORS origins
+        - DATABASE_URL, SECRET_KEY, ALGORITHM(HS256), ACCESS_TOKEN_EXPIRE_MINUTES(30)
+        - REDIS_URL (optional)
+
+    security.py:
+        - JWT token creation (HS256 with python-jose)
+        - Password hashing with bcrypt (passlib)
+        - Password verification
+
+    deps.py (API Dependencies):
+        - get_db: SQLAlchemy session generator
+        - get_current_user: Decode JWT → lookup user (required auth)
+        - get_current_active_user: Ensures user is active
+        - get_current_user_optional: Optional auth (returns None if no token)
+
+2.7 Credit/Economy Engine (app/credits/engine.py)
+
+    Pricing Model:
+        - CPU cost: 0.03 credits/second/core
+        - RAM cost: 0.007 credits/second/GB
+        - Network cost: 0.00015 credits/MB
+        - Base fee: 2.0 credits per job
+        - Success bonus: 1.0 credit
+        - Failure penalty: 0.5 credit
+
+    Functions:
+        - check_balance: Verify user has enough credits
+        - deduct_base_fee: Deduct base fee on job submission, create transaction record
+        - process_job_payment: Calculate CPU+RAM+network cost, deduct from user, record transaction
+
+2.8 Job Scheduler (app/scheduler/scheduler.py)
+
+    Runs every 5 seconds (async loop from main.py):
+    - Queries queued jobs ordered by created_at
+    - Marks agents as "offline" if heartbeat > 30 seconds stale
+    - Finds active agents with recent heartbeats
+    - For each queued job:
+        * Checks user balance for base fee (skips if insufficient)
+        * Deducts base fee via credit engine
+        * Matches job to available agent (checks CPU capacity)
+        * Assigns job → agent, sets status to "running", marks agent "busy"
+
+2.9 File Upload System
+    - Uploaded zip files stored in /backend/uploads/ directory
+    - Named by job ID: uploads/{job_id}.zip
+    - Downloadable via GET /jobs/{id}/download
+
+================================================================================
+3. FRONTEND (Next.js Dashboard) - /frontend
+================================================================================
+
+3.1 Tech Stack
+    - Next.js (App Router with route groups)
+    - TypeScript
+    - SWR for data fetching (2.5s refresh interval for real-time updates)
+    - Axios for API calls with JWT interceptor
+    - shadcn/ui component library (Card, Button, Input, Label, Switch, etc.)
+    - PostCSS
+    - Dark mode support via theme-provider
+
+3.2 Authentication System
+
+    AuthProvider (components/AuthProvider.tsx):
+        - React Context for auth state management
+        - Auto-checks token on mount (calls /users/me)
+        - login(): Stores JWT token, fetches user, redirects to dashboard
+        - logout(): Clears token, redirects to login
+
+    AuthGuard (components/auth-guard.tsx):
+        - Route protection component
+        - Redirects unauthenticated users to /login
+
+    Auth Pages:
+        - /login - Login page with AuthCard component, link to signup
+        - /signup - Signup page with AuthCard component, link to login
+
+    AuthCard (components/auth/auth-card.tsx):
+        - Reusable login/signup form component
+        - Handles form submission for both variants
+
+3.3 Dashboard Page (/dashboard)
+    - Summary cards: Job Queue count, Completed count, Active Agents, Credits balance
+    - Analytics panel with charts (job distribution, durations, resource usage)
+    - Distributed agents list with status indicators (StatusDot component)
+    - Real-time polling every 2.5 seconds via SWR
+
+3.4 Jobs Page (/jobs)
+    - Job submission form:
+        * File upload (zip)
+        * Build command (optional)
+        * Run command (required)
+        * CPU and RAM requirements (hidden defaults: 1 core, 1GB)
+        * Parallelizable toggle switch
+    - Recent jobs list with status indicators
+    - Click to navigate to job detail page
+
+3.5 Job Detail Page (/jobs/[id])
+    - Job name and current status with StatusDot
+    - Pause/Resume control buttons
+    - "Download Encrypted Result" button
+    - Live log panel (LogPanel component)
+    - Real-time polling every 2.5 seconds
+
+3.6 Agents Page (/agents)
+    - Agent cards with name and credit balance
+    - Configurable CPU limit (1-8 cores)
+    - Configurable memory limit (1-32 GB)
+    - Participating toggle switch (pause/resume agent)
+    - Real-time polling every 2.5 seconds
+
+3.7 Settings Page (/settings)
+    - Placeholder page for project-level preferences
+
+3.8 UI Components
+
+    Layout Components:
+        - Titlebar (components/hive/titlebar.tsx)
+        - Topbar (components/hive/topbar.tsx)
+        - Sidebar (components/hive/sidebar.tsx) - Navigation menu
+        - Statusbar (components/hive/statusbar.tsx)
+        - App Menubar (components/hive/app-menubar.tsx)
+
+    Hive-specific Components:
+        - StatusDot (components/StatusDot.tsx) - Color-coded status indicator
+        - StatusIndicator (components/hive/status-indicator.tsx)
+        - LogPanel (components/hive/log-panel.tsx) - Real-time job log viewer
+        - AnalyticsPanel (components/hive/analytics-panel.tsx) - Charts & graphs
+        - ResourceChart (components/hive/resource-chart.tsx) - Resource usage visualization
+        - AgentCard (components/AgentCard.tsx) - Agent display card
+        - JobCard (components/JobCard.tsx) - Job display card
+
+    shadcn/ui Components:
+        - Card, Button, Input, Label, Switch
+        - Theme Provider (dark/light mode support)
+
+3.9 API Client (lib/api.ts)
+    - Axios instance with JWT Bearer token interceptor
+    - Auto-attaches auth token from localStorage to all requests
+
+3.10 Custom Hooks
+    - use-mobile.ts: Mobile viewport detection hook
+    - use-toast.ts: Toast notification system
+
+3.11 Next.js Proxy Configuration (next.config.mjs)
+    - API proxy rewrites to forward /api/* requests to the backend
+
+================================================================================
+4. AGENT DAEMON - /agents
+================================================================================
+
+4.1 Main Agent Loop (main.py)
+
+    Registration Phase:
+        - Collects system info (CPU cores, total RAM via psutil)
+        - POST /agents/ to register with the coordinator
+        - Retries every 5 seconds until successful
+
+    Main Loop (every 5 seconds):
+        1. Heartbeat: Reports CPU/RAM usage to POST /agents/{id}/heartbeat
+        2. Job Polling: GET /jobs/?agent_id={id}&status=running
+        3. For each assigned job:
+            a. Download: Streams zip from GET /jobs/{id}/download
+            b. Execute: Calls docker_runner.run_job() with build/run commands + resource limits
+            c. Report Logs: POST /jobs/{id}/logs with execution output
+            d. Update Status: PUT /jobs/{id} with final status (completed/failed) + finished_at
+            e. Cleanup: Deletes downloaded zip file
+        4. Error handling: Reports job as "failed" on any execution error
+
+4.2 Docker Runner (docker_runner.py)
+
+    run_job(job_id, zip_path, build_cmd, run_cmd, cpu_limit, ram_limit):
+        1. Create work directory: work/{job_id}/
+        2. Extract zip file into work directory
+        3. Auto-generate Dockerfile if none exists (Python 3.9-slim base)
+        4. Build Docker image tagged "job-{job_id}"
+        5. Run container with:
+            - Memory limit (RAM GB → MB)
+            - Custom run command
+            - 10-minute timeout
+            - Detached mode
+        6. Collect build logs + container output
+        7. Clean up: remove container and work directory
+        8. Return status ("success"/"failed") and combined logs
+
+4.3 Agent Configuration (config.py / config.py.example)
+    - API_URL: Coordinator API endpoint
+    - AGENT_NAME: Agent identifier
+
+4.4 Dependencies
+    - requests: HTTP client for API communication
+    - psutil: System metrics collection
+    - docker: Docker SDK for Python (container management)
+
+================================================================================
+5. TESTING - /tests
+================================================================================
+
+    - Test job data: testjob1/ directory with sample job files
+    - testjob1.zip: Packaged test job for end-to-end testing
+
+================================================================================
+6. TEMPLATE - /template
+================================================================================
+
+    - Contains a template/scaffold Next.js app structure
+    - Includes app/, components/, hooks/, lib/, styles/, public/ directories
+    - Uses pnpm as package manager (pnpm-lock.yaml)
+    - Has its own components.json (shadcn/ui config)
+
+================================================================================
+7. KEY FEATURES SUMMARY
+================================================================================
+
+    [x] User registration and JWT authentication (bcrypt + HS256)
+    [x] Job submission via zip file upload
+    [x] Configurable build and run commands per job
+    [x] CPU and RAM resource requirements per job
+    [x] Automatic job scheduling (FCFS with resource matching)
+    [x] Agent auto-registration and heartbeat system
+    [x] Stale agent detection (30-second timeout)
+    [x] Docker-based sandboxed job execution
+    [x] Auto-generated Dockerfile if not provided
+    [x] Memory-limited container execution
+    [x] 10-minute job timeout
+    [x] Real-time job log collection and streaming
+    [x] Credit/economy system with per-second billing
+    [x] Transaction ledger for all credit operations
+    [x] Base fee deduction before job execution
+    [x] Resource-based cost calculation (CPU + RAM + Network)
+    [x] Dashboard with summary cards (queue, completed, agents, credits)
+    [x] Analytics panel with charts (mocked data)
+    [x] Real-time UI updates via SWR polling (2.5s interval)
+    [x] Dark/light theme support
+    [x] Responsive layout with sidebar navigation
+    [x] Job detail view with logs and controls
+    [x] Agent management with resource limit configuration
+    [x] Protected routes with auth guard
+    [x] PostgreSQL database with Alembic migrations
+    [x] Redis container (provisioned, not yet actively used)
+    [x] Docker Compose for infrastructure services
+    [x] Dockerfiles for backend and frontend deployment
+
+================================================================================
+8. KNOWN LIMITATIONS / TODOs (noted in code comments)
+================================================================================
+
+    - Analytics endpoint returns mocked/hardcoded data
+    - Agent earnings not yet credited to agent owners
+    - Success bonus / failure penalty logic partially implemented
+    - No agent authentication (relies on trust or basic user auth)
+    - CPU quota not enforced in Docker containers (only memory limit)
+    - Redis provisioned but not actively used (could be used for queuing)
+    - Settings page is a placeholder
+    - No job cancellation feature
+    - Scheduler uses FCFS; WFQ (Weighted Fair Queuing) not yet implemented
+    - download_snip.py appears to be a code snippet/draft (not registered in router)
+
+================================================================================
+                              END OF IMPLEMENTATION SUMMARY
+================================================================================

@@ -25,6 +25,7 @@ class UserInDBBase(UserBase):
 
 # Additional properties to return via API
 class User(UserInDBBase):
+    low_balance_alert_sent: Optional[bool] = False
     pass
 
 # Additional properties stored in DB

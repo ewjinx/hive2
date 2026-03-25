@@ -57,6 +57,7 @@ def schedule_jobs(db: Session):
             # Assign
             job.agent_id = best_agent.id
             job.status = JobStatus.RUNNING # Optimistic
+            job.started_at = datetime.now(timezone.utc)
             best_agent.status = "busy" # Or increment usage
             
             db.add(job)

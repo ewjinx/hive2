@@ -1,0 +1,112 @@
+===========================================================
+  HIVE DISTRIBUTED CI/CD PLATFORM - RUNBOOK & TEST GUIDE
+===========================================================
+
+This document provides step-by-step instructions on how to run all components
+of the Hive platform and verify the latest pipeline and credit economy features.
+
+PREREQUISITES
+-------------
+1. Python 3.10+
+2. Node.js 18+ & NPM
+3. Docker Desktop (Must be running for the Desktop Agent)
+4. PostgreSQL / Redis (Either installed locally or via Docker Compose)
+
+
+===========================================================
+PART 1: RUNNING THE PLATFORM (Locally)
+===========================================================
+
+----- Terminal 1: Infrastructure -----
+If you don't have Postgres and Redis running natively, start the infrastructure containers first:
+1. Open terminal in the project root.
+2. Run: `docker-compose up -d`
+
+
+----- Terminal 2: Backend API & Scheduler -----
+1. Open a new terminal in the `backend/` directory.
+2. Create and activate a Virtual Environment (if not done already):
+   Windows: `python -m venv venv` and `venv\Scripts\activate`
+   macOS/Linux: `python3 -m venv venv` and `source venv/bin/activate`
+3. Install dependencies: 
+   `pip install -r requirements.txt`
+4. Apply database migrations:
+   `alembic upgrade head`
+5. (Optional but recommended) Run `python init_db.py` to seed an initial admin user (ID #1).
+6. Start the FastAPI server (The job scheduler runs automatically as a background thread inside this process):
+   `uvicorn app.main:app --reload`
+   
+The backend is now accessible via http://localhost:8000.
+Swagger Documentation available at http://localhost:8000/docs
+
+
+----- Terminal 3: Frontend Web Platform -----
+1. Open a new terminal in the `frontend/` directory.
+2. Install dependencies:
+   `npm install`
+3. Start the Next.js development server:
+   `npm run dev`
+
+The web portal is now accessible at http://localhost:3000.
+
+
+----- Terminal 4: Desktop Agent Application -----
+Make sure Docker Desktop is open and running in the background.
+1. Open a new terminal in the `agents/` directory.
+2. Install the desktop dependencies:
+   `pip install -r requirements.txt`
+3. Launch the new Desktop Application:
+   `python desktop_app.py`
+4. You should see a new taskbar System Tray Icon (a black circle initially).
+   - Right-click the icon to view its status ("Connecting..." -> "Idle")
+   - Click "Configure..." to set your Agent Name and the API URL (defaults to http://localhost:8000/api/v1).
+   - Click "Start Agent" / "Stop Agent" to toggle its availability.
+5. (To package the agent into a standalone .exe for end-users, double-click `build_exe.bat`).
+
+
+===========================================================
+PART 2: TESTING THE PIPELINE & ECONOMY SYSTEM
+===========================================================
+
+STEP 1: Account Creation & Initial Setup
+1. Go to http://localhost:3000 and create a user account or log in.
+2. Take note of the beautiful new sidebar. At the bottom, you'll see your starting `Balance:` mathematically displayed as `100.00 credits`.
+
+STEP 2: Review Agent Registration
+1. Click on the `Agents` link in the sidebar to view the network.
+2. You should see your desktop agent listed as `idle` (it registers automatically upon Launch).
+
+STEP 3: Submitting a Multi-Step Pipeline Job
+1. Click on the `Jobs` link in the sidebar.
+2. For testing, create a simple `.zip` file of an empty folder.
+3. On the complex job submission form:
+   - Upload the `.zip` file.
+   - Click the "Multi-Step Pipeline" tab.
+   - Enter your steps dynamically (e.g., Step 1: `Name: Setup, Command: ls`, Step 2: `Name: Echo, Command: echo "Hello Hive"`).
+   - Set the `CPU Cores`, `RAM`, and `Estimated Duration` fields.
+4. As you adjust the CPU/RAM/Duration, watch the "Estimated Cost Preview" update in real-time. If you set the cost higher than 100.00, it blocks you from submitting!
+
+STEP 4: Watching the Pipeline Execution
+1. Submit the job. You will be redirected to the Job Details page.
+2. The UI will instantly display the modern `PipelinePanel`.
+3. You will visually see the job's progress bar move from Pending (gray) -> Running (blue, spinning loader) -> Success (green).
+4. Click on any pipeline step to expand its accordion and watch the real-time Docker terminal logs streaming from your System Tray agent.
+5. Notice your Desktop Agent Tray icon changing color simultaneously (Orange for "Running Job #", Green for "Idle").
+
+STEP 5: Verifying the Credit Economy & Agents Earning
+1. Click on the new `Transactions` link in the sidebar.
+2. Because you submitted the job, you will see a RED negative transaction exactly matching the runtime execution cost (e.g., `-2.0425`).
+3. Because your agent executed the job (and agents currently default to owner_id #1), if you are User #1, you will also see two GREEN positive transactions:
+   - "Resource earnings for running job on agent" (calculated using the platform margin rates of 0.02 CPU / 0.005 RAM vs user cost).
+   - "Success bonus for completing job" (+1.000).
+
+STEP 6: Forcing an Infrastructure Failure Penalty
+1. To test the `system_error` penalty logic:
+2. Stop the Desktop Agent `python desktop_app.py`.
+3. Create a `.zip` file that is corrupted, or intentionally stop your Docker Desktop daemon entirely.
+4. Submit another job.
+5. Launch the Desktop Agent again. Without Docker, it will throw an OS popup warning and exit (preventing damage to the machine). If the docker connection drops mid-job via an exception, the Agent will report `system_error` definitively.
+6. Check your `Transactions` page. You will see a `-0.500` "Infrastructure failure penalty" showing the agent was punished for unreliability! (Whereas normal script errors inside Docker pipelines merely cost the user, but payout the agent as normal).
+
+===========================================================
+You have just verified Phase 1 (Pipelines), Phase 2 (Desktop UI), and Phase 4 (Tokens & Economic Engine).

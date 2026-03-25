@@ -11,6 +11,7 @@ class User(Base):
     is_active = Column(Boolean(), default=True)
     is_superuser = Column(Boolean(), default=False)
     balance = Column(Float, default=100.0) # Start with credits
+    low_balance_alert_sent = Column(Boolean(), default=False)
 
     jobs = relationship("Job", back_populates="owner")
     transactions = relationship("Transaction", back_populates="user")

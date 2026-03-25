@@ -1,0 +1,378 @@
+================================================================================
+              HIVE: PEER-POWERED CI/CD - FUTURE PLANS & ROADMAP
+================================================================================
+
+This document outlines the remaining work needed to transform the current Hive
+prototype into a fully functional, production-ready distributed CI/CD platform.
+
+Work is organized into phases, ordered by priority and dependency.
+
+================================================================================
+PHASE 1: CORE PIPELINE ENGINE (Critical - Must Have)
+================================================================================
+
+Currently, jobs support only a single run_command. The final product requires
+a multi-step pipeline system where each step executes sequentially and the
+pipeline halts on any failure.
+
+1.1 Pipeline Model & Schema
+    - Replace single run_command with a steps array (JSON field on Job model):
+        {
+          "steps": [
+            { "name": "Install", "command": "pip install -r requirements.txt" },
+            { "name": "Test", "command": "pytest" },
+            { "name": "Run", "command": "python main.py" }
+          ]
+        }
+    - Add a PipelineStep model or store steps as JSON with per-step status
+    - Each step should track: name, command, status, start_time, end_time, log
+
+1.2 Step-by-Step Execution in Agent
+    - Modify docker_runner.py to execute steps sequentially inside the container
+    - Stop pipeline immediately if any step exits with non-zero code
+    - Capture and store logs separately for each step
+    - Report per-step status back to the server (not just final status)
+
+1.3 Per-Step Logging API
+    - New endpoints or modify existing log endpoint to accept step index/name
+    - Store logs per step so the frontend can display them individually
+
+1.4 Frontend Pipeline View
+    - Replace single log panel with a step-by-step pipeline view
+    - Show each step's name, status (pending/running/success/failed), duration
+    - Expandable log viewer per step
+    - Visual pipeline progress bar (step 1 → step 2 → step 3 → ...)
+
+================================================================================
+PHASE 2: DESKTOP AGENT APPLICATION (Critical - Must Have)
+================================================================================
+
+Currently the agent is a Python script. The final product needs a proper
+downloadable desktop application that non-technical users can install and run.
+
+2.1 Agent as Installable Application
+    - Package the Python agent using PyInstaller or similar (Windows .exe, macOS .app)
+    - OR build a lightweight Electron/Tauri desktop app wrapping the agent logic
+    - Include Docker dependency check (prompt user to install Docker if missing)
+    - System tray icon with start/stop/status
+    - Auto-start on system boot (optional toggle)
+
+2.2 Agent Configuration UI
+    - Simple GUI or system tray menu to configure:
+        * Server URL
+        * Agent name
+        * CPU cores to donate (slider)
+        * RAM to donate (slider)
+        * Network bandwidth limit
+        * Participating toggle (on/off)
+    - Save settings to local config file
+
+2.3 Agent Status Dashboard (Local)
+    - Show current status: idle / running job / offline
+    - Display current job details (if running)
+    - Show resource usage (CPU, RAM, network)
+    - Job history (completed jobs on this agent)
+    - Credits earned (if credit earning is enabled)
+
+2.4 Agent Download Page on Website
+    - Download page on the Hive website with:
+        * Windows installer (.exe / .msi)
+        * macOS installer (.dmg)
+        * Linux installer (.deb / .AppImage)
+    - Installation instructions
+    - System requirements (Docker required)
+    - Quick start guide
+
+2.5 Docker Prerequisite Handling
+    - On first launch, check if Docker is installed and running
+    - If not installed: show link to Docker Desktop download
+    - If installed but not running: prompt user to start Docker
+    - Periodically verify Docker is available before accepting jobs
+
+================================================================================
+PHASE 3: REAL ANALYTICS & DASHBOARD (High Priority)
+================================================================================
+
+Currently the analytics endpoint returns hardcoded mock data. Need real metrics.
+
+3.1 Real Analytics Queries
+    - Calculate actual job distribution from database (queued/running/success/failed)
+    - Compute average job duration over time windows
+    - Aggregate CPU and memory usage across all agents
+    - Calculate real credit earned/spent totals per user
+
+3.2 Summary Endpoint Enhancement
+    - GET /analytics/summary → real counts (queue depth, completed, active agents)
+    - GET /analytics/history → time-series data for charts
+    - GET /analytics/user/{id} → per-user stats
+
+3.3 Dashboard Charts
+    - Wire frontend charts to real data endpoints
+    - Job distribution pie/donut chart
+    - Execution duration line chart over time
+    - Resource utilization across agents
+    - Credit balance trend graph
+    - Active agents count over time
+
+3.4 Real-Time Updates
+    - Consider WebSocket or Server-Sent Events for live updates instead of polling
+    - Reduces unnecessary API calls and improves responsiveness
+    - Live log streaming during job execution
+
+================================================================================
+PHASE 4: CREDIT ECONOMY COMPLETION (High Priority)
+================================================================================
+
+The credit engine exists but has incomplete features. Needs full implementation.
+
+4.1 Agent Earnings
+    - When agents complete jobs, credit the agent owner's balance
+    - Agent earning rates (from code comments):
+        * CPU: 0.02 credits/second/core (vs user pays 0.03 — platform margin)
+        * RAM: 0.005 credits/second/GB (vs user pays 0.007)
+    - Create earning transactions linked to agent owner
+
+4.2 Success Bonus & Failure Penalty
+    - +1.0 credit bonus to agent owner on successful job completion
+    - -0.5 credit penalty logic (define when this applies)
+
+4.3 Credit Purchase / Top-Up System
+    - API endpoint for adding credits to account
+    - Payment integration (Stripe/PayPal) or manual admin top-up
+    - Transaction history page showing all credit movements
+
+4.4 Credit Display on Frontend
+    - Show user's current balance prominently in the navbar/sidebar
+    - Transaction history page (date, amount, description)
+    - Cost estimate before job submission (based on requested resources × estimated duration)
+    - Low balance warning when submitting jobs
+
+4.5 Insufficient Balance Handling
+    - Clear user-facing error when balance is too low
+    - Option to reduce resource requirements or add credits
+    - Email notification when balance is critically low
+
+================================================================================
+PHASE 5: GIT INTEGRATION (High Priority)
+================================================================================
+
+Users should be able to submit jobs directly from Git repositories.
+
+5.1 Git Repository as Job Source
+    - Accept Git URL (GitHub, GitLab, Bitbucket) as alternative to ZIP upload
+    - Clone repository on the agent before building
+    - Support private repos (SSH key or personal access token)
+
+5.2 GitHub Integration
+    - OAuth login with GitHub
+    - List user's repositories for selection
+    - One-click job submission from a repo
+
+5.3 Webhook-Triggered Jobs (Future)
+    - GitHub/GitLab webhook endpoint
+    - Auto-submit job on push/PR events
+    - Configurable: which branches trigger builds
+    - Status checks reported back to GitHub (commit status API)
+
+================================================================================
+PHASE 6: SECURITY & SANDBOXING HARDENING (High Priority)
+================================================================================
+
+6.1 Docker Container Security
+    - Enforce CPU quotas (currently only RAM is limited)
+    - Apply CPU period/quota via Docker SDK
+    - Network restrictions: disable network access by default, opt-in per job
+    - Read-only file system outside /app
+    - No privileged mode, drop all capabilities
+    - Seccomp profile for syscall filtering
+
+6.2 Agent Authentication
+    - Replace open agent registration with token-based auth
+    - Agent token issued on registration, required for all API calls
+    - Prevent unauthorized agents from joining the network
+    - Agent identity verification on heartbeat
+
+6.3 Job Validation
+    - Validate ZIP file contents (size limits, no symlinks, no absolute paths)
+    - Scan for potentially dangerous Dockerfiles
+    - Maximum execution time enforcement (already 10 min, make configurable)
+    - Maximum output/log size limits
+
+6.4 User Security
+    - Password requirements enforcement
+    - Rate limiting on auth endpoints
+    - Account lockout after failed login attempts
+    - HTTPS enforcement in production
+
+================================================================================
+PHASE 7: ADVANCED SCHEDULING (Medium Priority)
+================================================================================
+
+7.1 Weighted Fair Queuing (WFQ)
+    - Replace FCFS scheduling with WFQ
+    - Priority based on: user credit balance, job resource requirements
+    - Prevent starvation of low-priority jobs
+
+7.2 Smart Agent Matching
+    - Better resource matching: consider both CPU AND RAM availability
+    - Prefer agents with most available resources (best-fit or worst-fit)
+    - Geographic proximity matching (if applicable)
+    - Agent performance history (prefer faster/more reliable agents)
+
+7.3 Queue Management
+    - Job priority levels (low/normal/high at different credit rates)
+    - Queue position visibility for users
+    - Estimated wait time calculation
+    - Job cancellation while in queue
+
+7.4 Failure Recovery
+    - Auto-retry failed jobs (configurable retry count)
+    - Reassign jobs if agent goes offline mid-execution
+    - Dead letter queue for permanently failed jobs
+    - User notification on job failure
+
+================================================================================
+PHASE 8: PARALLEL EXECUTION (Medium Priority)
+================================================================================
+
+8.1 Job Splitting
+    - Allow users to define parallelizable steps
+    - Split test suites across multiple agents
+    - Merge results from parallel executions
+
+8.2 Multi-Agent Job Distribution
+    - Assign different pipeline steps to different agents
+    - Artifact passing between steps (step 1 output → step 2 input)
+    - Synchronization barriers between parallel and sequential steps
+
+8.3 Parallel Dashboard View
+    - Show which steps run in parallel vs sequential
+    - Gantt chart style view of execution timeline
+    - Aggregate logs from multiple agents
+
+================================================================================
+PHASE 9: WEBSITE & DEPLOYMENT (Medium Priority)
+================================================================================
+
+9.1 Landing Page
+    - Professional landing page explaining Hive
+    - How it works section
+    - Pricing / credit system explanation
+    - Download agent section with platform-specific links
+    - Getting started guide
+
+9.2 User Settings Page
+    - Profile management (email, password change)
+    - API key management (for programmatic job submission)
+    - Notification preferences
+    - Connected Git accounts
+    - Agent management (view/remove registered agents)
+
+9.3 Admin Panel
+    - System-wide job monitoring
+    - User management
+    - Agent oversight
+    - Credit adjustments
+    - System health metrics
+
+9.4 Production Deployment
+    - Dockerized deployment (backend + frontend + database)
+    - Docker Compose for full stack
+    - Environment variable management
+    - SSL/TLS certificates (Let's Encrypt)
+    - Domain setup and DNS
+    - Database backups and recovery plan
+    - Logging and monitoring (Prometheus/Grafana or similar)
+
+================================================================================
+PHASE 10: POLISH & UX (Lower Priority but Important)
+================================================================================
+
+10.1 Notifications System
+    - In-app notifications (job completed, job failed, low credits)
+    - Email notifications (optional)
+    - Toast notifications on the dashboard
+
+10.2 Job Re-Run
+    - "Re-run" button on failed jobs (resubmit with same config)
+    - "Clone" job to re-run with modified parameters
+    - Job comparison (diff between runs)
+
+10.3 Dark/Light Mode
+    - Already partially implemented via theme-provider
+    - Ensure consistent theming across all pages
+    - User preference persistence
+
+10.4 Mobile Responsiveness
+    - Ensure all pages work on mobile devices
+    - use-mobile.ts hook already exists — wire it up fully
+    - Test and fix responsive breakpoints
+
+10.5 Documentation
+    - API documentation (auto-generated from FastAPI + manual additions)
+    - User guide for the web platform
+    - Agent installation guide
+    - Pipeline configuration guide
+    - Troubleshooting FAQ
+
+================================================================================
+IMPLEMENTATION ORDER (RECOMMENDED)
+================================================================================
+
+Step 1:  Pipeline Engine              (Phase 1)     ← Foundation for everything
+Step 2:  Credit Economy Completion    (Phase 4)     ← Needed for real usage
+Step 3:  Real Analytics               (Phase 3)     ← Dashboard needs real data
+Step 4:  Security Hardening           (Phase 6)     ← Before public deployment
+Step 5:  Desktop Agent App            (Phase 2)     ← Key user-facing deliverable
+Step 6:  Git Integration              (Phase 5)     ← Major usability boost
+Step 7:  Advanced Scheduling          (Phase 7)     ← Better job distribution
+Step 8:  Website & Deployment         (Phase 9)     ← Production readiness
+Step 9:  Parallel Execution           (Phase 8)     ← Advanced feature
+Step 10: Polish & UX                  (Phase 10)    ← Final touches
+
+================================================================================
+WHAT'S ALREADY DONE vs WHAT'S NEEDED
+================================================================================
+
+  Feature                           Status          Phase Needed
+  ─────────────────────────────────────────────────────────────────
+  User auth (login/signup/JWT)      ✅ Done          -
+  Job submission (ZIP upload)       ✅ Done          -
+  Single-command execution          ✅ Done          -
+  Multi-step pipeline               ❌ Not started   Phase 1
+  Per-step logging                  ❌ Not started   Phase 1
+  Agent registration & heartbeat    ✅ Done          -
+  Docker job execution              ✅ Done          -
+  Auto-generated Dockerfile         ✅ Done          -
+  Memory-limited containers         ✅ Done          -
+  CPU-limited containers            ❌ Not started   Phase 6
+  Credit deduction (base + usage)   ✅ Done          -
+  Agent earnings                    ❌ Not started   Phase 4
+  Transaction ledger                ✅ Done          -
+  Dashboard with summary cards      ✅ Done          -
+  Analytics (real data)             ❌ Mocked         Phase 3
+  Real-time updates (SWR polling)   ✅ Done          -
+  WebSocket live streaming          ❌ Not started   Phase 3
+  Job scheduler (FCFS)              ✅ Done          -
+  Weighted Fair Queuing             ❌ Not started   Phase 7
+  Agent auto-recovery               ❌ Not started   Phase 7
+  Git repo as job source            ❌ Not started   Phase 5
+  GitHub webhooks                   ❌ Not started   Phase 5
+  Desktop agent app                 ❌ Not started   Phase 2
+  Agent download page               ❌ Not started   Phase 2
+  Agent auth tokens                 ❌ Not started   Phase 6
+  Network sandboxing                ❌ Not started   Phase 6
+  Parallel execution                ❌ Not started   Phase 8
+  Landing page                      ❌ Not started   Phase 9
+  Admin panel                       ❌ Not started   Phase 9
+  Notifications                     ❌ Not started   Phase 10
+  Job re-run                        ❌ Not started   Phase 10
+  Dark/light theme                  🔶 Partial       Phase 10
+  Settings page                     🔶 Placeholder   Phase 9
+  Mobile responsive                 🔶 Partial       Phase 10
+  Production deployment             ❌ Not started   Phase 9
+  Documentation                     ❌ Not started   Phase 10
+
+================================================================================
+                              END OF FUTURE PLANS
+================================================================================

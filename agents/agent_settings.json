@@ -1,0 +1,17 @@
+{
+    "API_URL": "http://localhost:8000/api/v1",
+    "TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzQ0Njk1NDcsInN1YiI6InJhbmFvdmVyaGVyZUBnbWFpbC5jb20ifQ.4FNiNVYY09gTMy5w7cctWakOqGe_vCKKWdbgWswX8PQ",
+    "AGENTS": [
+        {
+            "name": "ahsan",
+            "cpu_cores": 12,
+            "ram_gb": 15.910781860351562,
+            "status": "idle",
+            "id": 1,
+            "owner_id": 3,
+            "last_heartbeat": "2026-03-25T18:59:07.681425Z",
+            "current_cpu_usage": 19.5,
+            "current_ram_usage": 14.297405242919922
+        }
+    ]
+}

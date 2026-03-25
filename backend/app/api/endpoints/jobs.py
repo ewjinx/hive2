@@ -1,5 +1,6 @@
 from typing import Any, List
 import os
+import json
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
@@ -14,26 +15,43 @@ router = APIRouter()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@router.post("/", response_model=schemas.Job)
+@router.post("", response_model=schemas.Job)
 def create_job(
     *,
     db: Session = Depends(deps.get_db),
     file: UploadFile = File(...),
-    run_command: str = Form(...),
+    run_command: str = Form(None),
     build_command: str = Form(None),
     cpu_req: int = Form(1),
     ram_req: float = Form(1.0),
+    steps: str = Form(None),  # JSON string of pipeline steps
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Submit a new job (upload zip).
+    Provide either run_command (simple job) or steps (pipeline job).
+    steps should be a JSON array: [{"name": "Install", "command": "pip install -r requirements.txt"}, ...]
     """
+    # Parse pipeline steps from JSON string
+    parsed_steps = None
+    if steps:
+        try:
+            steps_data = json.loads(steps)
+            parsed_steps = [schemas.PipelineStepCreate(**s) for s in steps_data]
+        except (json.JSONDecodeError, Exception) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid steps format: {e}")
+
+    # Validate: need either run_command or steps
+    if not run_command and not parsed_steps:
+        raise HTTPException(status_code=400, detail="Either run_command or steps must be provided")
+
     # Create DB record
     job_in = schemas.JobCreate(
         run_command=run_command,
         build_command=build_command,
         cpu_req=cpu_req,
-        ram_req=ram_req
+        ram_req=ram_req,
+        steps=parsed_steps,
     )
     job = crud.crud_job.create(db, obj_in=job_in, owner_id=current_user.id)
     
@@ -42,12 +60,9 @@ def create_job(
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    # Trigger scheduler (or it runs periodically)
-    # For now, just leave it as queued
-    
     return job
 
-@router.get("/", response_model=List[schemas.Job])
+@router.get("", response_model=List[schemas.Job])
 def read_jobs(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
@@ -75,7 +90,7 @@ def read_job(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get job details.
+    Get job details (includes pipeline_steps).
     """
     job = crud.crud_job.get(db, id=job_id)
     if not job:
@@ -125,7 +140,6 @@ def update_job(
     db: Session = Depends(deps.get_db),
     job_id: int,
     job_in: schemas.JobUpdate,
-    # Allow agents to update status? Yes.
 ):
     """
     Update job status/results.
@@ -134,22 +148,23 @@ def update_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
         
-    # TODO: Verify agent ownership if agent is calling?
-    # For now assume trust or check if job.agent_id matches current agent (if we had auth)
-    
-    # Simple update
     job = crud.crud_job.update_status(db, db_obj=job, status=job_in.status) 
-    # NOTE: crud_update_status only updates status, let's fix that or just update status for now.
-    # The schema JobUpdate has status, started_at, finished_at.
-    # We should use a proper crud update.
-    
-    # Hand-roll update for now
+
     if job_in.finished_at:
         job.finished_at = job_in.finished_at
     
     db.add(job)
     db.commit()
     db.refresh(job)
+    
+    # Process payment if job reaches a terminal state
+    terminal_states = ["success", "failed", "system_error", "abandoned"]
+    if job.status in terminal_states and job.started_at and job.finished_at:
+        from app.credits.engine import process_job_payment
+        duration_sec = (job.finished_at - job.started_at).total_seconds()
+        duration_sec = max(1.0, duration_sec) # minimum 1 second billing
+        process_job_payment(db, job, duration_sec)
+        
     return job
 
 @router.post("/{job_id}/logs", response_model=schemas.JobLog)
@@ -163,3 +178,65 @@ def create_job_log(
     Append log to job.
     """
     return crud.crud_job.create_log(db, obj_in=log_in, job_id=job_id)
+
+# --- Pipeline Step Endpoints ---
+
+@router.get("/{job_id}/steps", response_model=List[schemas.PipelineStep])
+def get_pipeline_steps(
+    *,
+    db: Session = Depends(deps.get_db),
+    job_id: int,
+):
+    """
+    Get pipeline steps for a job, ordered by step_index.
+    """
+    job = crud.crud_job.get(db, id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return crud.crud_job.get_pipeline_steps(db, job_id=job_id)
+
+@router.put("/{job_id}/steps/{step_index}", response_model=schemas.PipelineStep)
+def update_pipeline_step(
+    *,
+    db: Session = Depends(deps.get_db),
+    job_id: int,
+    step_index: int,
+    step_in: schemas.PipelineStepUpdate,
+):
+    """
+    Update a pipeline step's status, timing, and/or log.
+    Used by agents to report per-step execution results.
+    """
+    job = crud.crud_job.get(db, id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    step = crud.crud_job.get_pipeline_step_by_index(db, job_id=job_id, step_index=step_index)
+    if not step:
+        raise HTTPException(status_code=404, detail=f"Pipeline step {step_index} not found")
+    
+    return crud.crud_job.update_pipeline_step(db, db_obj=step, obj_in=step_in)
+
+@router.get("/{job_id}/steps/{step_index}/log", response_model=schemas.JobLogBase)
+def get_pipeline_step_log(
+    *,
+    db: Session = Depends(deps.get_db),
+    job_id: int,
+    step_index: int,
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Get the log for a specific pipeline step.
+    """
+    job = crud.crud_job.get(db, id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if not current_user.is_superuser and job.owner_id != current_user.id:
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+        
+    step = crud.crud_job.get_pipeline_step_by_index(db, job_id=job_id, step_index=step_index)
+    if not step:
+        raise HTTPException(status_code=404, detail=f"Pipeline step {step_index} not found")
+        
+    return {"content": step.log or ""}
+

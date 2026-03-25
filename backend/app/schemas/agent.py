@@ -10,6 +10,7 @@ class AgentBase(BaseModel):
 
 class AgentCreate(AgentBase):
     name: str
+    owner_email: Optional[str] = None
     cpu_cores: int
     ram_gb: float
 
