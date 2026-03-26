@@ -25,6 +25,22 @@ async def startup_event():
     
     Base.metadata.create_all(bind=engine)
     
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        try:
+            conn.execute(text('ALTER TABLE agents ADD COLUMN token VARCHAR UNIQUE;'))
+            conn.commit()
+        except: pass
+        
+        try:
+            conn.execute(text('ALTER TABLE jobs ADD COLUMN parent_id INTEGER REFERENCES jobs(id);'))
+            conn.execute(text('ALTER TABLE jobs ADD COLUMN array_size INTEGER DEFAULT 1;'))
+            conn.execute(text('ALTER TABLE jobs ADD COLUMN env_vars JSON;'))
+            conn.commit()
+            print("Successfully migrated Jobs table for Array features.")
+        except Exception:
+            pass
+    
     # Create system user for agents if not exists (ID must be 1)
     db = SessionLocal()
     try:
@@ -42,16 +58,17 @@ async def startup_event():
 
     # Start Scheduler Loop
     async def run_scheduler():
+        import traceback
         while True:
             try:
-                # Use a new DB session per iteration
                 db_sched = SessionLocal()
                 try:
                     scheduler_logic.schedule_jobs(db_sched)
                 finally:
                     db_sched.close()
             except Exception as e:
-                print(f"Scheduler Error: {e}")
+                print(f"❌ FATAL SCHEDULER ERROR ❌")
+                traceback.print_exc()
             await asyncio.sleep(5)
 
     asyncio.create_task(run_scheduler())

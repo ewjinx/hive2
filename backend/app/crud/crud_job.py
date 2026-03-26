@@ -4,10 +4,31 @@ from app.models.job import Job, JobLog, PipelineStep
 from app.schemas.job import JobCreate, JobUpdate, JobLogCreate, PipelineStepCreate, PipelineStepUpdate
 
 def get(db: Session, id: int):
-    return db.query(Job).filter(Job.id == id).first()
+    job = db.query(Job).filter(Job.id == id).first()
+    if job and job.array_size > 1:
+        children = db.query(Job).filter(Job.parent_id == job.id).all()
+        if children:
+            statuses = [c.status for c in children]
+            if all(s == "success" for s in statuses): job.status = "success"
+            elif any(s == "failed" for s in statuses): job.status = "failed"
+            elif any(s == "running" for s in statuses): job.status = "running"
+            elif all(s == "queued" for s in statuses): job.status = "queued"
+            else: job.status = "running"
+    return job
 
 def get_multi_by_owner(db: Session, owner_id: int, skip: int = 0, limit: int = 100):
-    return db.query(Job).filter(Job.owner_id == owner_id).order_by(Job.created_at.desc()).offset(skip).limit(limit).all()
+    jobs = db.query(Job).filter(Job.owner_id == owner_id, Job.parent_id == None).order_by(Job.created_at.desc()).offset(skip).limit(limit).all()
+    for job in jobs:
+        if job.array_size > 1:
+            children = db.query(Job).filter(Job.parent_id == job.id).all()
+            if children:
+                statuses = [c.status for c in children]
+                if all(s == "success" for s in statuses): job.status = "success"
+                elif any(s == "failed" for s in statuses): job.status = "failed"
+                elif any(s == "running" for s in statuses): job.status = "running"
+                elif all(s == "queued" for s in statuses): job.status = "queued"
+                else: job.status = "running"
+    return jobs
 
 def create(db: Session, *, obj_in: JobCreate, owner_id: int):
     db_obj = Job(

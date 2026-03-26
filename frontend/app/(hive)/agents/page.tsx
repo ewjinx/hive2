@@ -17,7 +17,10 @@ export default function AgentsPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>{a.name}</span>
-              <Badge variant={a.status === "offline" ? "destructive" : "default"}>
+              <Badge 
+                variant={a.status === "offline" ? "destructive" : "default"}
+                className={a.status === "idle" ? "bg-yellow-500 hover:bg-yellow-600 border-transparent text-white" : ""}
+              >
                 {a.status}
               </Badge>
             </CardTitle>

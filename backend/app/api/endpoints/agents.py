@@ -1,3 +1,4 @@
+import secrets
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -40,7 +41,8 @@ def register_agent(
     
     # Create new agent bounded to the JWT token bearer
     agent_data = agent_in.dict(exclude={"owner_email"})
-    db_obj = Agent(**agent_data, owner_id=current_user.id)
+    token_str = secrets.token_urlsafe(32)
+    db_obj = Agent(**agent_data, owner_id=current_user.id, token=token_str)
     
     db.add(db_obj)
     db.commit()
@@ -87,14 +89,46 @@ def heartbeat(
     db: Session = Depends(deps.get_db),
     agent_id: int,
     heartbeat_in: schemas.AgentHeartbeat,
-    # current_user: User = Depends(deps.get_current_active_user), # Agents might use a different auth, simplest is user auth or token
+    current_agent = Depends(deps.get_current_agent),
 ) -> Any:
     """
-    Agent heartbeat.
+    Agent heartbeat. Strictly restricted to the individual agent token.
     """
+    if current_agent.id != agent_id:
+        raise HTTPException(status_code=403, detail="Token mismatch with requested agent_id")
+        
     agent = crud.crud_agent.get(db, id=agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    # In a real system, verify the caller owns the agent or use an agent-token
+        
     agent = crud.crud_agent.update_heartbeat(db, db_obj=agent, obj_in=heartbeat_in)
+    return agent
+
+@router.delete("/{agent_id}", response_model=schemas.Agent)
+def delete_agent(
+    *,
+    db: Session = Depends(deps.get_db),
+    agent_id: int,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Permanently erase an agent instance from the database.
+    Nullifies Foreign Keys on previous jobs to prevent cascading metadata deletions.
+    """
+    from app.models.agent import Agent
+    from app.models.job import Job
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+        
+    if not current_user.is_superuser and agent.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+        
+    jobs = db.query(Job).filter(Job.agent_id == agent_id).all()
+    for j in jobs:
+        j.agent_id = None
+        db.add(j)
+        
+    db.delete(agent)
+    db.commit()
     return agent

@@ -7,10 +7,21 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
     is_superuser: bool = False
 
+import re
+from pydantic import BaseModel, EmailStr, validator
+
 # Properties to receive via API on creation
 class UserCreate(UserBase):
     email: EmailStr
     password: str
+
+    @validator('password')
+    def password_strong(cls, v):
+        if len(v) < 8: raise ValueError('Password must be at least 8 characters long')
+        if not re.search(r"[A-Z]", v): raise ValueError('Password must contain an uppercase letter')
+        if not re.search(r"[a-z]", v): raise ValueError('Password must contain a lowercase letter')
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v): raise ValueError('Password must contain a special character')
+        return v
 
 # Properties to receive via API on update
 class UserUpdate(UserBase):

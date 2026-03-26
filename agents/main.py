@@ -68,16 +68,19 @@ class NodeManager:
             
     def _agent_loop(self, agent_config, stop_ev):
         aid = agent_config["id"]
-        headers = {"Authorization": f"Bearer {config.TOKEN}"} if config.TOKEN else {}
+        token = agent_config.get("token", "")
+        headers = {"X-Agent-Token": str(token)} if token else {}
+        
+        active_jobs = set()
         
         while not stop_ev.is_set():
             try:
-                self.statuses[aid] = "Idle"
+                self.statuses[aid] = "Idle" if not active_jobs else f"Running {len(active_jobs)} Job(s)"
                 cpu, ram = self.get_sys_stats()
                 
                 resp = requests.post(
                     f"{config.API_URL}/agents/{aid}/heartbeat", 
-                    json={"current_cpu_usage": cpu, "current_ram_usage": ram, "status": "idle"}, 
+                    json={"current_cpu_usage": cpu, "current_ram_usage": ram, "status": "busy" if active_jobs else "idle"}, 
                     headers=headers, timeout=5
                 )
                 
@@ -92,8 +95,20 @@ class NodeManager:
                     for job in jobs:
                         if stop_ev.is_set():
                             break
-                        self.statuses[aid] = f"Running Job {job['id']}"
-                        self._execute_job(job, aid, headers)
+                        
+                        job_id = job['id']
+                        if job_id not in active_jobs:
+                            active_jobs.add(job_id)
+                            self.statuses[aid] = f"Running Job {job_id}"
+                            
+                            def bg_runner(j, a, h):
+                                try:
+                                    self._execute_job(j, a, h)
+                                finally:
+                                    if j['id'] in active_jobs:
+                                        active_jobs.remove(j['id'])
+                            
+                            threading.Thread(target=bg_runner, args=(job, aid, headers), daemon=True).start()
                         
             except Exception as e:
                 self.statuses[aid] = f"Error: {str(e)}"
@@ -118,7 +133,7 @@ class NodeManager:
 
             pipeline_steps = job.get('pipeline_steps', [])
             if pipeline_steps:
-                status, _ = self._execute_pipeline_job(job, zip_path, pipeline_steps, headers)
+                status, _ = self._execute_pipeline_job(job, zip_path, pipeline_steps, headers, job.get('env_vars'))
             else:
                 def live_log_chunk(chunk):
                     try:
@@ -135,7 +150,8 @@ class NodeManager:
                     run_cmd=job['run_command'],
                     cpu_limit=job['cpu_req'],
                     ram_limit=job['ram_req'],
-                    log_callback=live_log_chunk
+                    log_callback=live_log_chunk,
+                    env_vars=job.get('env_vars')
                 )
             
             final_status = status if status in ["success", "system_error"] else "failed"
@@ -151,7 +167,7 @@ class NodeManager:
             if os.path.exists(zip_path):
                 os.remove(zip_path)
 
-    def _execute_pipeline_job(self, job, zip_path, pipeline_steps, headers):
+    def _execute_pipeline_job(self, job, zip_path, pipeline_steps, headers, env_vars=None):
         job_id = job['id']
         steps = sorted(
             [{"step_index": s['step_index'], "name": s['name'], "command": s['command']} for s in pipeline_steps],
@@ -174,7 +190,8 @@ class NodeManager:
             steps=steps,
             cpu_limit=job['cpu_req'],
             ram_limit=job['ram_req'],
-            step_callback=step_callback
+            step_callback=step_callback,
+            env_vars=env_vars
         )
         
         combined_log = []

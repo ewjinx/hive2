@@ -199,11 +199,20 @@ class HiveApp(ctk.CTk):
             
             sliders.grid_columnconfigure(1, weight=1)
             
+            btn_row = ctk.CTkFrame(card, fg_color="transparent")
+            btn_row.pack(pady=(0, 10), padx=10, fill="x")
+
             save_btn = ctk.CTkButton(
-                card, text="Apply Settings", height=24,
+                btn_row, text="Apply Settings", height=24,
                 command=lambda i=idx, n=name_var, c=cpu_slider, r=ram_slider: self.apply_limits(i, n.get(), c.get(), r.get())
             )
-            save_btn.pack(pady=(0, 10), padx=10, fill="x")
+            save_btn.pack(side="left", expand=True, fill="x", padx=(0, 5))
+            
+            del_btn = ctk.CTkButton(
+                btn_row, text="Trash", height=24, fg_color="#d32f2f", hover_color="#b71c1c", width=60,
+                command=lambda i=idx: self.delete_node(i)
+            )
+            del_btn.pack(side="right")
 
     def toggle_power(self, idx):
         agent = config.AGENTS[idx]
@@ -230,6 +239,18 @@ class HiveApp(ctk.CTk):
             messagebox.showinfo("Applied", f"Settings updated seamlessly.")
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+    def delete_node(self, idx):
+        if messagebox.askyesno("Delete Node", "Permanently remove this node from the local cluster?"):
+            agent = config.AGENTS.pop(idx)
+            config.save_config(agents=config.AGENTS)
+            
+            headers = {"Authorization": f"Bearer {config.TOKEN}"}
+            try:
+                requests.delete(f"{config.API_URL}/agents/{agent['id']}", headers=headers)
+            except: pass
+                
+            self.refresh_nodes()
 
     def update_loop(self):
         if not hasattr(self, "rotation"):

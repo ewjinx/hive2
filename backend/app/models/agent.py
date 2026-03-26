@@ -9,6 +9,7 @@ class Agent(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     owner_id = Column(Integer, ForeignKey("users.id")) # Optional: link agent to user for earnings
+    token = Column(String, unique=True, index=True, nullable=True) # Secure agent identity token
     
     cpu_cores = Column(Integer)
     ram_gb = Column(Float)

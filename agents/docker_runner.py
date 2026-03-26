@@ -6,7 +6,7 @@ import time
 
 client = docker.from_env()
 
-def run_job(job_id: int, zip_path: str, build_cmd: str, run_cmd: str, cpu_limit: int, ram_limit: float, log_callback=None):
+def run_job(job_id: int, zip_path: str, build_cmd: str, run_cmd: str, cpu_limit: int, ram_limit: float, log_callback=None, env_vars=None):
     """
     Run a simple single-command job in a Docker container.
     Streams logs chunk-by-chunk over a buffered timer if a callback is provided.
@@ -18,8 +18,16 @@ def run_job(job_id: int, zip_path: str, build_cmd: str, run_cmd: str, cpu_limit:
     logs = []
     
     try:
-        # 1. Unzip
+        # 1. Unzip securely (protect against path traversal & zip bombs)
+        MAX_UNCOMPRESSED_SIZE = 500 * 1024 * 1024  # 500 MB
+        total_size = 0
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            for info in zip_ref.infolist():
+                if info.filename.startswith('/') or '..' in info.filename:
+                    raise ValueError(f"Malicious zip payload: invalid path {info.filename}")
+                total_size += info.file_size
+                if total_size > MAX_UNCOMPRESSED_SIZE:
+                    raise ValueError("Malicious zip payload: exceeds 500MB uncompressed limit")
             zip_ref.extractall(work_dir)
             
         # 2. Build Image (if Dockerfile exists)
@@ -42,14 +50,31 @@ def run_job(job_id: int, zip_path: str, build_cmd: str, run_cmd: str, cpu_limit:
             command=run_cmd,
             detach=True,
             mem_limit=mem_limit,
+            nano_cpus=int(cpu_limit * 1e9),
+            network_disabled=True,
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges"],
+            environment=env_vars or {}
         )
         
-        # 4. Stream Logs Live
+        # 4. Stream Logs Live & Enforce Size Limits
         buffer = []
         last_push = time.time()
+        MAX_LOG_SIZE = 10 * 1024 * 1024 # 10MB
+        total_log_bytes = 0
         
         for line in container.logs(stream=True):
             line_str = line.decode('utf-8')
+            total_log_bytes += len(line_str)
+            
+            if total_log_bytes > MAX_LOG_SIZE:
+                err = "\n\n[SYSTEM ERROR] Log output exceeded 10MB hardware limit. Terminating container immediately.\n"
+                logs.append(err)
+                buffer.append(err)
+                if log_callback: log_callback(err)
+                container.kill()
+                break
+                
             logs.append(line_str)
             buffer.append(line_str)
             
@@ -83,7 +108,7 @@ def run_job(job_id: int, zip_path: str, build_cmd: str, run_cmd: str, cpu_limit:
             shutil.rmtree(work_dir)
 
 
-def run_pipeline_job(job_id: int, zip_path: str, steps: list, cpu_limit: int, ram_limit: float, step_callback=None):
+def run_pipeline_job(job_id: int, zip_path: str, steps: list, cpu_limit: int, ram_limit: float, step_callback=None, env_vars=None):
     """
     Run a multi-step pipeline job in a Docker container.
     
@@ -113,8 +138,16 @@ def run_pipeline_job(job_id: int, zip_path: str, steps: list, cpu_limit: int, ra
     overall_status = "success"
     
     try:
-        # 1. Unzip
+        # 1. Unzip securely (protect against path traversal & zip bombs)
+        MAX_UNCOMPRESSED_SIZE = 500 * 1024 * 1024  # 500 MB
+        total_size = 0
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            for info in zip_ref.infolist():
+                if info.filename.startswith('/') or '..' in info.filename:
+                    raise ValueError(f"Malicious zip payload: invalid path {info.filename}")
+                total_size += info.file_size
+                if total_size > MAX_UNCOMPRESSED_SIZE:
+                    raise ValueError("Malicious zip payload: exceeds 500MB uncompressed limit")
             zip_ref.extractall(work_dir)
         
         # 2. Build Docker image
@@ -132,6 +165,11 @@ def run_pipeline_job(job_id: int, zip_path: str, steps: list, cpu_limit: int, ra
             command="tail -f /dev/null",  # Keep container alive
             detach=True,
             mem_limit=mem_limit,
+            nano_cpus=int(cpu_limit * 1e9),
+            network_disabled=True,
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges"],
+            environment=env_vars or {}
         )
         
         from datetime import datetime, timezone
@@ -158,9 +196,15 @@ def run_pipeline_job(job_id: int, zip_path: str, steps: list, cpu_limit: int, ra
                 
                 exit_code = exec_result.exit_code
                 
-                # Collect output (stdout + stderr)
+                # Collect output (stdout + stderr) & Enforce Size Limits
                 stdout = exec_result.output[0].decode('utf-8') if exec_result.output[0] else ""
                 stderr = exec_result.output[1].decode('utf-8') if exec_result.output[1] else ""
+                
+                MAX_LOG_SIZE = 10 * 1024 * 1024 # 10MB
+                if len(stdout) + len(stderr) > MAX_LOG_SIZE:
+                    stdout = stdout[:MAX_LOG_SIZE]
+                    stderr += "\n\n[SYSTEM WARNING] Step output exceeded 10MB hardware limit and was forcefully truncated.\n"
+
                 step_log = stdout
                 if stderr:
                     step_log += f"\n[STDERR]\n{stderr}"

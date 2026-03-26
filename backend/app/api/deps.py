@@ -47,6 +47,18 @@ def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+from fastapi import Header
+
+def get_current_agent(
+    db: Session = Depends(get_db),
+    x_agent_token: str = Header(..., alias="X-Agent-Token")
+) -> "Agent":
+    from app.models.agent import Agent
+    agent = db.query(Agent).filter(Agent.token == x_agent_token).first()
+    if not agent:
+        raise HTTPException(status_code=401, detail="Invalid agent token")
+    return agent
+
 def get_current_user_optional(
     db: Session = Depends(get_db),
     token: str = Depends(reusable_oauth2_opt)

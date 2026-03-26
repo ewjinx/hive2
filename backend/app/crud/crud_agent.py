@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from sqlalchemy.orm import Session
 from app.models.agent import Agent
@@ -17,7 +17,7 @@ def create(db: Session, *, obj_in: AgentCreate, owner_id: int = None):
         ram_gb=obj_in.ram_gb,
         owner_id=owner_id,
         status="idle",
-        last_heartbeat=datetime.utcnow()
+        last_heartbeat=datetime.now(timezone.utc)
     )
     db.add(db_obj)
     db.commit()
@@ -25,10 +25,12 @@ def create(db: Session, *, obj_in: AgentCreate, owner_id: int = None):
     return db_obj
 
 def update_heartbeat(db: Session, *, db_obj: Agent, obj_in: AgentHeartbeat):
-    db_obj.last_heartbeat = datetime.utcnow()
-    db_obj.current_cpu_usage = obj_in.current_cpu_usage
-    db_obj.current_ram_usage = obj_in.current_ram_usage
+    db_obj.last_heartbeat = datetime.now(timezone.utc)
+    # The Backend Scheduler is the absolute source of truth for CPU/RAM math locks.
+    # We explicitly discard Desktop App psutil.cpu_percent() readings to prevent ghost overwrites.
+    
     db_obj.status = obj_in.status
+    
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)

@@ -36,6 +36,8 @@ class JobBase(BaseModel):
     ram_req: float = 1.0
     build_command: Optional[str] = None
     run_command: Optional[str] = None  # optional when using pipeline steps
+    array_size: Optional[int] = 1
+    env_vars: Optional[dict] = None
 
 class JobCreate(JobBase):
     steps: Optional[List[PipelineStepCreate]] = None
@@ -51,6 +53,23 @@ class JobUpdate(BaseModel):
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     cost: Optional[float] = None
+
+class JobInDBBase(JobBase):
+    id: int
+    owner_id: int
+    agent_id: Optional[int] = None
+    parent_id: Optional[int] = None
+    status: str
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    cost: float
+
+    class Config:
+        from_attributes = True
+
+class Job(JobInDBBase):
+    pipeline_steps: Optional[List[PipelineStep]] = []
 
 class JobLogBase(BaseModel):
     content: str

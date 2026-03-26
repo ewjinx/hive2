@@ -94,10 +94,10 @@ export default function AnalyticsPanel() {
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              pending: { label: "Pending", color: "var(--color-pending)" },
-              running: { label: "Running", color: "var(--color-running)" },
-              completed: { label: "Completed", color: "var(--color-completed)" },
-              failed: { label: "Failed", color: "var(--color-failed)" },
+              pending: { label: "Pending", color: "#FACC15" },
+              running: { label: "Running", color: "#3B82F6" },
+              completed: { label: "Completed", color: "#22C55E" },
+              failed: { label: "Failed", color: "#EF4444" },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -132,7 +132,7 @@ export default function AnalyticsPanel() {
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              duration: { label: "Avg Duration (s)", color: "var(--color-duration)" },
+              duration: { label: "Avg Duration (s)", color: "#6366F1" },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -166,8 +166,8 @@ export default function AnalyticsPanel() {
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              cpu: { label: "CPU %", color: "var(--color-cpu)" },
-              memory: { label: "Memory %", color: "var(--color-memory)" },
+              cpu: { label: "CPU %", color: "#F97316" },
+              memory: { label: "Memory %", color: "#14B8A6" },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -210,9 +210,9 @@ export default function AnalyticsPanel() {
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              balance: { label: "Net Balance", color: "var(--color-chart-1)" },
-              earned: { label: "Earned", color: "var(--color-earned)" },
-              spent: { label: "Spent", color: "var(--color-spent)" },
+              balance: { label: "Net Balance", color: "#4F46E5" },
+              earned: { label: "Earned", color: "#84CC16" },
+              spent: { label: "Spent", color: "#A855F7" },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -247,8 +247,8 @@ export default function AnalyticsPanel() {
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              earned: { label: "Earned", color: "var(--color-earned)" },
-              spent: { label: "Spent", color: "var(--color-spent)" },
+              earned: { label: "Earned", color: "#84CC16" },
+              spent: { label: "Spent", color: "#A855F7" },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -283,9 +283,9 @@ export default function AnalyticsPanel() {
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              idle: { label: "Idle", color: "var(--color-completed)" },
-              busy: { label: "Busy", color: "var(--color-running)" },
-              offline: { label: "Offline", color: "var(--color-failed)" },
+              idle: { label: "Idle", color: "#22C55E" },
+              busy: { label: "Busy", color: "#3B82F6" },
+              offline: { label: "Offline", color: "#EF4444" },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">

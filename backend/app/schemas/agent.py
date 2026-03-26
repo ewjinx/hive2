@@ -25,6 +25,7 @@ class AgentHeartbeat(BaseModel):
 class AgentInDBBase(AgentBase):
     id: Optional[int] = None
     owner_id: Optional[int] = None
+    token: Optional[str] = None
     last_heartbeat: Optional[datetime] = None
     current_cpu_usage: Optional[float] = 0.0
     current_ram_usage: Optional[float] = 0.0

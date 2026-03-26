@@ -28,6 +28,7 @@ export default function JobsPage() {
   const [cpuReq, setCpuReq] = useState(1)
   const [ramReq, setRamReq] = useState(1.0)
   const [estDuration, setEstDuration] = useState(60)
+  const [arraySize, setArraySize] = useState(1)
 
   const addStep = () => {
     setSteps([...steps, { name: `Step ${steps.length + 1}`, command: "" }])
@@ -50,7 +51,7 @@ export default function JobsPage() {
   const cpuCostPerSec = 0.03
   const ramCostPerSec = 0.007
   const estimatedVariableCost = (cpuReq * cpuCostPerSec * estDuration) + (ramReq * ramCostPerSec * estDuration)
-  const estimatedCost = baseFee + estimatedVariableCost
+  const estimatedCost = (baseFee + estimatedVariableCost) * arraySize
   
   const hasEnoughBalance = user ? user.balance >= estimatedCost : true
 
@@ -138,7 +139,7 @@ export default function JobsPage() {
               </TabsContent>
             </Tabs>
 
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t mt-2">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t mt-2">
               <div className="grid gap-2">
                 <Label htmlFor="cpu_req">CPU Cores</Label>
                 <Input 
@@ -167,7 +168,20 @@ export default function JobsPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="est_dur">Est. Duration (s)</Label>
+                <Label htmlFor="array_size">Array Task Nodes</Label>
+                <Input 
+                  id="array_size" 
+                  name="array_size" 
+                  type="number" 
+                  min="1" 
+                  max="1000" 
+                  value={arraySize} 
+                  onChange={(e) => setArraySize(parseInt(e.target.value) || 1)} 
+                  required 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="est_dur">Est. Dur. (s)</Label>
                 <Input 
                   id="est_dur" 
                   type="number" 
@@ -185,12 +199,12 @@ export default function JobsPage() {
                 <span className="font-mono font-bold">{estimatedCost.toFixed(2)} credits</span>
               </div>
               <div className="text-xs text-muted-foreground flex justify-between">
-                <span>Base Network Fee:</span>
-                <span>{baseFee.toFixed(2)} credits</span>
+                <span>Base Network Fee ({arraySize}x nodes):</span>
+                <span>{(baseFee * arraySize).toFixed(2)} credits</span>
               </div>
               <div className="text-xs text-muted-foreground flex justify-between">
-                <span>Variable Compute ({estDuration}s):</span>
-                <span>{estimatedVariableCost.toFixed(3)} credits</span>
+                <span>Variable Compute ({estDuration}s × {arraySize}x nodes):</span>
+                <span>{(estimatedVariableCost * arraySize).toFixed(3)} credits</span>
               </div>
               
               {!hasEnoughBalance && user && (

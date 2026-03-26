@@ -3,20 +3,13 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 
 function HiveMark() {
   // simple hex/honeycomb icon
   return (
     <div className="flex items-center gap-2 px-4 py-4">
-      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden className="text-primary">
-        <path
-          fill="currentColor"
-          d="M12 2 6 5v6l6 3 6-3V5l-6-3Zm0 9L6 8m6 3 6-3M6 13v6l6 3 6-3v-6l-6 3-6-3Z"
-          stroke="currentColor"
-          strokeWidth="1"
-          fillOpacity="0.08"
-        />
-      </svg>
+      <Image src="/hive_logo.png" alt="Hive Logo" width={24} height={24} />
       <span className="font-semibold tracking-tight">Hive</span>
     </div>
   )

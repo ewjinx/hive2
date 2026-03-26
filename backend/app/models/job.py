@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Enum
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Enum, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -18,8 +18,12 @@ class Job(Base):
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
     agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    parent_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
     
     status = Column(String, default=JobStatus.QUEUED)
+    
+    array_size = Column(Integer, default=1)
+    env_vars = Column(JSON, nullable=True)
     
     cpu_req = Column(Integer, default=1) # requested CPU cores
     ram_req = Column(Float, default=1.0) # requested RAM GB
