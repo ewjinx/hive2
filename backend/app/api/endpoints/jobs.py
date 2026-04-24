@@ -77,7 +77,7 @@ def create_job(
             child_job.env_vars = {"HIVE_ARRAY_INDEX": str(i)}
             db.add(child_job)
             
-        job.status = "queued" # Parent acts globally as a live container
+        job.status = "running" # Parent acts globally as a live container
         db.add(job)
         db.commit()
         

@@ -5,7 +5,7 @@ from app.schemas.job import JobCreate, JobUpdate, JobLogCreate, PipelineStepCrea
 
 def get(db: Session, id: int):
     job = db.query(Job).filter(Job.id == id).first()
-    if job and job.array_size > 1:
+    if job:
         children = db.query(Job).filter(Job.parent_id == job.id).all()
         if children:
             statuses = [c.status for c in children]
@@ -14,20 +14,22 @@ def get(db: Session, id: int):
             elif any(s == "running" for s in statuses): job.status = "running"
             elif all(s == "queued" for s in statuses): job.status = "queued"
             else: job.status = "running"
+            # Keep array_size accurate if it drifted
+            job.array_size = len(children)
     return job
 
 def get_multi_by_owner(db: Session, owner_id: int, skip: int = 0, limit: int = 100):
     jobs = db.query(Job).filter(Job.owner_id == owner_id, Job.parent_id == None).order_by(Job.created_at.desc()).offset(skip).limit(limit).all()
     for job in jobs:
-        if job.array_size > 1:
-            children = db.query(Job).filter(Job.parent_id == job.id).all()
-            if children:
-                statuses = [c.status for c in children]
-                if all(s == "success" for s in statuses): job.status = "success"
-                elif any(s == "failed" for s in statuses): job.status = "failed"
-                elif any(s == "running" for s in statuses): job.status = "running"
-                elif all(s == "queued" for s in statuses): job.status = "queued"
-                else: job.status = "running"
+        children = db.query(Job).filter(Job.parent_id == job.id).all()
+        if children:
+            statuses = [c.status for c in children]
+            if all(s == "success" for s in statuses): job.status = "success"
+            elif any(s == "failed" for s in statuses): job.status = "failed"
+            elif any(s == "running" for s in statuses): job.status = "running"
+            elif all(s == "queued" for s in statuses): job.status = "queued"
+            else: job.status = "running"
+            job.array_size = len(children)
     return jobs
 
 def create(db: Session, *, obj_in: JobCreate, owner_id: int):
@@ -37,7 +39,9 @@ def create(db: Session, *, obj_in: JobCreate, owner_id: int):
         ram_req=obj_in.ram_req,
         build_command=obj_in.build_command,
         run_command=obj_in.run_command,
-        status="queued"
+        status="queued",
+        array_size=obj_in.array_size,
+        env_vars=obj_in.env_vars
     )
     db.add(db_obj)
     db.commit()
@@ -77,7 +81,68 @@ def create_log(db: Session, *, obj_in: JobLogCreate, job_id: int):
     return db_obj
 
 def get_logs(db: Session, job_id: int):
-    return db.query(JobLog).filter(JobLog.job_id == job_id).all()
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if job:
+        children = db.query(Job).filter(Job.parent_id == job_id).all()
+        if children:
+            child_ids = [c.id for c in children]
+            from sqlalchemy import asc
+            logs = db.query(JobLog).filter(JobLog.job_id.in_(child_ids)).order_by(JobLog.id.asc()).all()
+            
+            # Optional: Perform MapReduce style aggregation if children are finished
+            if all(c.status in ["success", "failed"] for c in children):
+                summary = reduce_array_logs(logs)
+                if summary:
+                    # Prepend summary as a pseudo-log entry
+                    summary_log = JobLog(content=summary, job_id=job_id)
+                    return [summary_log] + logs
+            return logs
+    return db.query(JobLog).filter(JobLog.job_id == job_id).order_by(JobLog.id.asc()).all()
+
+def reduce_array_logs(logs: List[JobLog]) -> str:
+    import re
+    pi_values = []
+    times = []
+    
+    # Heuristic regex patterns for common FYP outputs
+    pi_pattern = re.compile(r"📊 Estimated Pi:\s*([0-9.]+)")
+    time_pattern = re.compile(r"⏱️ Compute Time:\s*([0-9.]+)")
+    
+    for log in logs:
+        content = log.content or ""
+        pi_match = pi_pattern.search(content)
+        if pi_match:
+            pi_values.append(float(pi_match.group(1)))
+        
+        time_match = time_pattern.search(content)
+        if time_match:
+            times.append(float(time_match.group(1)))
+            
+    if not pi_values and not times:
+        return None
+        
+    report = [
+        "=========================================",
+        "🐝 HIVE GRID AGGREGATION REPORT 🐝",
+        "=========================================",
+        f"Shards Processed:  {len(logs) // 10 if len(logs) > 10 else len(logs)} (Aggregated across grid)",
+    ]
+    
+    if pi_values:
+        avg_pi = sum(pi_values) / len(pi_values)
+        report.append(f"Mean Estimated Pi: {avg_pi:.6f}")
+        report.append(f"Variance:          {max(pi_values) - min(pi_values):.6f}")
+        
+    if times:
+        total_grid_time = sum(times)
+        max_parallel_time = max(times)
+        report.append(f"Total Grid Time:   {total_grid_time:.2f}s")
+        report.append(f"Parallel WallTime: {max_parallel_time:.2f}s")
+        report.append(f"Grid Efficiency:   {((total_grid_time / max_parallel_time) / len(times) * 100):.1f}%")
+        
+    report.append("=========================================")
+    report.append("\n")
+    return "\n".join(report)
 
 def get_multi_by_agent(db: Session, agent_id: int, status: str = None):
     query = db.query(Job).filter(Job.agent_id == agent_id)

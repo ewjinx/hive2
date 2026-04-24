@@ -5,7 +5,6 @@ import type React from "react"
 import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
@@ -31,7 +30,7 @@ export function AuthCard({
       ? { text: "Already have an account?", href: "/login", cta: "Log In" }
       : { text: "New to Hive?", href: "/signup", cta: "Create an account" }
 
-  const router = useRouter() // Import likely needed, adding import in separate block or verify exisiting
+  const router = useRouter()
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -43,12 +42,10 @@ export function AuthCard({
 
     try {
       if (variant === "signup") {
-        // Register
         await api.post("/api/users/", { email, password })
         toast.success("Account created! Logging you in...")
       }
 
-      // Login (for both explicit login and auto-login after signup)
       const params = new URLSearchParams()
       params.append("username", email)
       params.append("password", password)
@@ -60,7 +57,7 @@ export function AuthCard({
       localStorage.setItem("token", res.data.access_token)
       toast.success("Welcome back!")
       router.push("/dashboard")
-      router.refresh() // Ensure middleware/layout state updates
+      router.refresh()
     } catch (err: any) {
       console.error(err)
       toast.error(err.response?.data?.detail || "Authentication failed")
@@ -71,79 +68,76 @@ export function AuthCard({
 
   return (
     <div className="relative">
-      <Card className="bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 border-border">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-center text-balance text-2xl font-semibold">{title}</CardTitle>
-          <CardDescription className="text-center text-pretty">{description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="grid gap-4" onSubmit={onSubmit}>
-            <div className="grid gap-2">
-              <Label htmlFor="email" className="sr-only">
-                Email
-              </Label>
-              <Input id="email" name="email" type="email" placeholder="you@company.com" required autoComplete="email" />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password" className="sr-only">
-                Password
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                autoComplete={variant === "signup" ? "new-password" : "current-password"}
-              />
-            </div>
+      {/* Auth Card */}
+      <div className="bg-card rounded-3xl border border-foreground/10 p-8 md:p-10">
+        {/* Header */}
+        <div className="space-y-2 mb-8">
+          <h1 className="text-center text-3xl font-bold font-heading">{title}</h1>
+          <p className="text-center text-muted-foreground text-sm">{description}</p>
+        </div>
 
-            {/* Captcha-like placeholder box for visual parity without an external dependency */}
-            <div
-              aria-label="Verification placeholder"
-              className="rounded-md border bg-muted/30 px-3 py-3 text-xs text-muted-foreground"
-            >
-              {"I’m not a robot (placeholder)"}
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (variant === "signup" ? "Creating..." : "Signing in...") : buttonLabel}
-            </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              By continuing you agree to our{" "}
-              <Link href="#" className="underline underline-offset-4 hover:text-foreground">
-                terms
-              </Link>{" "}
-              and{" "}
-              <Link href="#" className="underline underline-offset-4 hover:text-foreground">
-                privacy policy
-              </Link>
-              .
-            </p>
-          </form>
-
-          {/* Social proof row */}
-          <div className="mt-8">
-            <p className="text-center text-sm text-muted-foreground">Join the community</p>
-            <div className="mt-3 grid grid-cols-4 items-center gap-4 opacity-70">
-              {/* Placeholder logos — replace with real logos later */}
-              <div className="h-6 rounded bg-muted" />
-              <div className="h-6 rounded bg-muted" />
-              <div className="h-6 rounded bg-muted" />
-              <div className="h-6 rounded bg-muted" />
-            </div>
+        {/* Form */}
+        <form className="grid gap-5" onSubmit={onSubmit}>
+          <div className="grid gap-2">
+            <Label htmlFor="email" className="text-sm font-semibold">
+              Email
+            </Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="you@company.com"
+              required
+              autoComplete="email"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password" className="text-sm font-semibold">
+              Password
+            </Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              required
+              autoComplete={variant === "signup" ? "new-password" : "current-password"}
+            />
           </div>
 
-          {/* Bottom prompt */}
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            {bottomPrompt.text}{" "}
-            <Link href={bottomPrompt.href} className="font-medium text-primary underline-offset-4 hover:underline">
-              {bottomPrompt.cta}
-            </Link>
+          {/* Captcha placeholder */}
+          <div
+            aria-label="Verification placeholder"
+            className="rounded-xl border border-foreground/10 bg-accent px-4 py-3 text-xs text-muted-foreground flex items-center gap-3"
+          >
+            <div className="h-5 w-5 rounded border-2 border-foreground/20" />
+            <span>{"I'm not a robot"}</span>
           </div>
-        </CardContent>
-      </Card>
+
+          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            {loading ? (variant === "signup" ? "Creating..." : "Signing in...") : buttonLabel}
+          </Button>
+
+          <p className="text-center text-xs text-muted-foreground">
+            By continuing you agree to our{" "}
+            <Link href="#" className="underline underline-offset-4 hover:text-foreground">
+              terms
+            </Link>{" "}
+            and{" "}
+            <Link href="#" className="underline underline-offset-4 hover:text-foreground">
+              privacy policy
+            </Link>.
+          </p>
+        </form>
+
+        {/* Bottom prompt */}
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          {bottomPrompt.text}{" "}
+          <Link href={bottomPrompt.href} className="font-bold text-foreground underline-offset-4 hover:underline">
+            {bottomPrompt.cta}
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

@@ -3,8 +3,53 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
+/* ─── Grass.io-Inspired Design Tokens ─────────────────────────── */
 
+:root {
+  /* Primary Accent: Lime Green */
+  --grass-primary: #ABF600;
+  --grass-primary-hover: #BCFB20;
+  --grass-primary-dark: #89C500;
+  --grass-secondary: #F2FED1;
+  --grass-secondary-dark: #DBFB9A;
+
+  /* Backgrounds */
+  --background: #FAFAFA;
+  --foreground: #000000;
+  --card: #FFFFFF;
+  --card-foreground: #000000;
+  --popover: #FFFFFF;
+  --popover-foreground: #000000;
+
+  /* Primary (Lime Green) */
+  --primary: #ABF600;
+  --primary-foreground: #000000;
+
+  /* Secondary */
+  --secondary: #F3F3F3;
+  --secondary-foreground: #000000;
+  --muted: #F5F5F5;
+  --muted-foreground: #545454;
+  --accent: #F6F9F2;
+  --accent-foreground: #000000;
+
+  /* Destructive */
+  --destructive: #E21212;
+  --destructive-foreground: #FFFFFF;
+
+  /* Borders & Input */
+  --border: #191A23;
+  --input: #191A23;
+  --ring: #ABF600;
+
+  /* Charts */
+  --chart-1: #ABF600;
+  --chart-2: #22C55E;
+  --chart-3: #FACC15;
+  --chart-4: #EF4444;
+  --chart-5: #3B82F6;
+
+  /* Job Status Colors */
   --color-pending: #FACC15;
   --color-running: #3B82F6;
   --color-completed: #22C55E;
@@ -14,106 +59,76 @@
   --color-memory: #14B8A6;
   --color-earned: #84CC16;
   --color-spent: #A855F7;
-  --background: rgb(255, 255, 255);
-  --foreground: rgb(9, 9, 11);
-  --card: rgb(255, 255, 255);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: rgb(255, 255, 255);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: rgb(22, 163, 74);
-  /* honey amber */
-  --primary-foreground: oklch(0.17 0 0);
-  /* near-black text on amber */
 
-  --secondary: rgb(244, 244, 245);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: rgb(244, 244, 245);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: rgb(244, 244, 245);
-  /* cyan accent for live status */
-  --accent-foreground: oklch(0.17 0 0);
+  /* Radius */
+  --radius: 1rem;
 
-  --destructive: rgb(239, 68, 68);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: rgb(228, 228, 231);
-  --input: rgb(228, 228, 231);
-  --ring: rgb(22, 163, 74);
-  --chart-1: rgb(42, 150, 244);
-  /* blue */
-  --chart-2: rgb(32, 197, 181);
-  /* teal */
-  --chart-3: rgb(249, 206, 31);
-  /* yellow highlight */
-  --chart-4: rgb(239, 57, 57);
-  /* red (failed) */
-  --chart-5: rgb(44, 169, 232);
-  /* cyan/blue accent */
-  --radius: 0.625rem;
-  --sidebar: rgb(250, 250, 250);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: var(--ring);
-  --online: oklch(0.76 0.14 210);
-  /* cyan-ish for online dot */
-  --font-serif: Source Serif 4, Source Serif 4 Fallback;
-  --font-mono: Geist Mono, Geist Mono Fallback;
-  --titlebar: color-mix(in oklab, var(--background) 92%, black 8%);
-  --titlebar-foreground: var(--foreground);
-  --statusbar: color-mix(in oklab, var(--background) 96%, black 4%);
-  --statusbar-foreground: var(--foreground);
+  /* Sidebar */
+  --sidebar: #FAFAFA;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #ABF600;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #F6F9F2;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #E5E5E5;
+  --sidebar-ring: #ABF600;
+
+  /* Online Status */
+  --online: #22C55E;
+
+  /* Misc */
+  --font-serif: "Source Serif 4", "Source Serif 4 Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
 }
 
 .dark {
-  --background: hsl(20 14.3% 4.1%);
-  --foreground: hsl(0 0% 95%);
-  --card: hsl(24 9.8% 10%);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: hsl(0 0% 9%);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: hsl(142.1 70.6% 45.3%);
-  /* brighter amber on dark */
-  --primary-foreground: oklch(0.17 0 0);
+  --background: #212121;
+  --foreground: #FFFFFF;
+  --card: #272727;
+  --card-foreground: #FFFFFF;
+  --popover: #272727;
+  --popover-foreground: #FFFFFF;
 
-  --secondary: hsl(240 3.7% 15.9%);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: hsl(0 0% 15%);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: hsl(12 6.5% 15.1%);
-  /* cyan */
-  --accent-foreground: oklch(0.15 0 0);
+  --primary: #ABF600;
+  --primary-foreground: #000000;
 
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: hsl(240 3.7% 15.9%);
-  --input: hsl(240 3.7% 15.9%);
-  --ring: hsl(142.4 71.8% 29.2%);
-  --chart-1: hsl(208 92% 62%);
-  --chart-2: hsl(174 76% 50%);
-  --chart-3: hsl(48 98% 60%);
-  --chart-4: hsl(0 88% 62%);
-  --chart-5: hsl(200 88% 60%);
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: var(--ring);
-  --online: oklch(0.76 0.14 210);
-  --titlebar: color-mix(in oklab, var(--background) 85%, white 15%);
-  --titlebar-foreground: var(--foreground);
-  --statusbar: color-mix(in oklab, var(--background) 80%, white 20%);
-  --statusbar-foreground: var(--foreground);
+  --secondary: #404040;
+  --secondary-foreground: #FFFFFF;
+  --muted: #333333;
+  --muted-foreground: #A1A1A1;
+  --accent: #333333;
+  --accent-foreground: #FFFFFF;
+
+  --destructive: #FF2377;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #444444;
+  --input: #444444;
+  --ring: #ABF600;
+
+  --chart-1: #ABF600;
+  --chart-2: #22C55E;
+  --chart-3: #FACC15;
+  --chart-4: #EF4444;
+  --chart-5: #3B82F6;
+
+  --sidebar: #1D1D1D;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #ABF600;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #333333;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #444444;
+  --sidebar-ring: #ABF600;
+  --online: #22C55E;
 }
 
+/* ─── Tailwind Theme Bindings ─────────────────────────────────── */
+
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --font-sans: var(--font-karla), "Karla", sans-serif;
+  --font-heading: var(--font-dm-sans), "DM Sans", sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -151,19 +166,49 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-online: var(--online);
-  --color-titlebar: var(--titlebar);
-  --color-titlebar-foreground: var(--titlebar-foreground);
-  --color-statusbar: var(--statusbar);
-  --color-statusbar-foreground: var(--statusbar-foreground);
   --font-serif: "Source Serif 4", "Source Serif 4 Fallback";
 }
 
+/* ─── Base Styles ─────────────────────────────────────────────── */
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border/20 outline-ring/50;
   }
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ─── Grass.io Custom Utilities ───────────────────────────────── */
+
+@layer utilities {
+  /* Grass.io-style card with subtle dark border */
+  .grass-card {
+    @apply bg-card rounded-2xl;
+    border: 1px solid rgba(25, 26, 35, 0.12);
+  }
+  .dark .grass-card {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Lime green glow for active states */
+  .grass-glow {
+    box-shadow: 0 0 20px rgba(171, 246, 0, 0.15);
+  }
+
+  /* Grass.io-style pill button */
+  .grass-btn {
+    @apply rounded-full font-semibold uppercase tracking-wide text-sm;
+    transition: all 0.2s ease;
+  }
+  .grass-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Smooth transitions for interactive elements */
+  .grass-transition {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }

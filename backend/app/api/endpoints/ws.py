@@ -87,8 +87,19 @@ async def ws_job_logs(websocket: WebSocket, job_id: int):
                     })
                     break
                 
-                # Get logs
-                logs = db.query(JobLog).filter(JobLog.job_id == job_id).all()
+                # Compute dynamic status if children exist
+                children = db.query(Job).filter(Job.parent_id == job_id).all()
+                computed_status = job.status
+                if children:
+                    statuses = [c.status for c in children]
+                    if all(s == "success" for s in statuses): computed_status = "success"
+                    elif "failed" in statuses or "system_error" in statuses: computed_status = "failed"
+                    elif "running" in statuses: computed_status = "running"
+                    elif all(s == "queued" for s in statuses): computed_status = "queued"
+                    else: computed_status = "running"
+
+                # Get logs (including new MapReduce aggregation)
+                logs = crud.crud_job.get_logs(db, job_id=job_id)
                 current_count = len(logs)
                 
                 # Send update if there are new logs or status changed
@@ -108,7 +119,7 @@ async def ws_job_logs(websocket: WebSocket, job_id: int):
                 await manager.send_personal(websocket, {
                     "type": "job_update",
                     "job_id": job_id,
-                    "status": job.status,
+                    "status": computed_status,
                     "logs": log_contents,
                     "pipeline_steps": steps_data,
                     "cost": job.cost,

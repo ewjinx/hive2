@@ -18,18 +18,24 @@ interface Transaction {
 export default function TransactionsPage() {
   const { data: transactions, error, isLoading } = useSWR<Transaction[]>("/api/users/me/transactions", fetcher)
 
-  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading transactions...</div>
-  if (error) return <div className="p-8 text-center text-destructive">Failed to load transactions</div>
+  if (isLoading) return (
+    <div className="p-12 text-center text-muted-foreground">
+      <div className="animate-pulse text-4xl mb-4">💳</div>
+      <p className="font-medium">Loading transactions...</p>
+    </div>
+  )
+  if (error) return <div className="p-12 text-center text-destructive font-semibold">Failed to load transactions</div>
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold font-heading mb-1">Transactions</h1>
+        <p className="text-muted-foreground text-sm">View your credit history and spending</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Credit History</CardTitle>
+          <CardTitle className="font-heading text-xl">Credit History</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -47,15 +53,16 @@ export default function TransactionsPage() {
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       {format(new Date(tx.timestamp), "MMM dd, yyyy HH:mm:ss")}
                     </TableCell>
-                    <TableCell>{tx.description}</TableCell>
-                    <TableCell className={`text-right font-medium ${tx.amount < 0 ? 'text-destructive' : 'text-green-500'}`}>
+                    <TableCell className="font-medium">{tx.description}</TableCell>
+                    <TableCell className={`text-right font-bold font-mono ${tx.amount < 0 ? 'text-destructive' : 'text-green-600'}`}>
                       {tx.amount > 0 ? "+" : ""}{tx.amount.toFixed(4)}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
+                    <div className="text-3xl mb-2">📊</div>
                     No transactions found.
                   </TableCell>
                 </TableRow>

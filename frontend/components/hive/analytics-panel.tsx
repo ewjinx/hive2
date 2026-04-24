@@ -47,8 +47,24 @@ type AnalyticsResponse = {
 
 const fetcher = (url: string) => api.get(url).then((r) => r.data)
 
+// Grass.io-inspired chart colors
+const CHART_COLORS = {
+  pending: "#FACC15",
+  running: "#3B82F6",
+  completed: "#ABF600",   // Grass.io lime green
+  failed: "#E21212",      // Grass.io error
+  duration: "#6366F1",
+  cpu: "#F97316",
+  memory: "#14B8A6",
+  earned: "#ABF600",
+  spent: "#A855F7",
+  balance: "#3B82F6",
+  idle: "#ABF600",
+  busy: "#3B82F6",
+  offline: "#E21212",
+}
+
 export default function AnalyticsPanel() {
-  // Fetch from both endpoints concurrently
   const { data, isLoading } = useSWR<AnalyticsResponse>("/api/analytics", fetcher, { refreshInterval: 3000 })
   const { data: history } = useSWR<HistoryResponse>("/api/analytics/history", fetcher, { refreshInterval: 5000 })
 
@@ -76,28 +92,31 @@ export default function AnalyticsPanel() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Analytics</CardTitle>
+          <CardTitle className="font-heading text-xl">Analytics</CardTitle>
         </CardHeader>
-        <CardContent className="text-muted-foreground">Loading analytics...</CardContent>
+        <CardContent className="text-muted-foreground py-12 text-center">
+          <div className="animate-pulse text-3xl mb-3">📊</div>
+          <p className="font-medium">Loading analytics...</p>
+        </CardContent>
       </Card>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
       {/* ── 1. Job Distribution (Pie) ──────────────────────────── */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Job Distribution</CardTitle>
+          <CardTitle className="text-base font-heading">Job Distribution</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              pending: { label: "Pending", color: "#FACC15" },
-              running: { label: "Running", color: "#3B82F6" },
-              completed: { label: "Completed", color: "#22C55E" },
-              failed: { label: "Failed", color: "#EF4444" },
+              pending: { label: "Pending", color: CHART_COLORS.pending },
+              running: { label: "Running", color: CHART_COLORS.running },
+              completed: { label: "Completed", color: CHART_COLORS.completed },
+              failed: { label: "Failed", color: CHART_COLORS.failed },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -113,7 +132,7 @@ export default function AnalyticsPanel() {
                   isAnimationActive
                 >
                   {jobPie.map((entry) => (
-                    <Cell key={entry.key} fill={`var(--color-${entry.key})`} />
+                    <Cell key={entry.key} fill={CHART_COLORS[entry.key as keyof typeof CHART_COLORS]} />
                   ))}
                 </Pie>
                 <Legend />
@@ -124,20 +143,20 @@ export default function AnalyticsPanel() {
       </Card>
 
       {/* ── 2. Avg Build/Test Duration (Line) ──────────────────── */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Avg Build/Test Duration</CardTitle>
+          <CardTitle className="text-base font-heading">Avg Build/Test Duration</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              duration: { label: "Avg Duration (s)", color: "#6366F1" },
+              duration: { label: "Avg Duration (s)", color: CHART_COLORS.duration },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data?.durations || []} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-                <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.35} strokeDasharray="3 3" />
+                <CartesianGrid strokeOpacity={0.1} strokeDasharray="3 3" />
                 <XAxis dataKey="time" hide />
                 <YAxis width={32} />
                 <ChartTooltip content={<ChartTooltipContent />} />
@@ -146,7 +165,7 @@ export default function AnalyticsPanel() {
                   type="monotone"
                   dataKey="avgDuration"
                   name="Avg Duration (s)"
-                  stroke="var(--color-duration)"
+                  stroke={CHART_COLORS.duration}
                   strokeWidth={2}
                   dot={false}
                   isAnimationActive
@@ -158,21 +177,21 @@ export default function AnalyticsPanel() {
       </Card>
 
       {/* ── 3. CPU + Memory Utilization (Area) ─────────────────── */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Cluster Utilization</CardTitle>
+          <CardTitle className="text-base font-heading">Cluster Utilization</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              cpu: { label: "CPU %", color: "#F97316" },
-              memory: { label: "Memory %", color: "#14B8A6" },
+              cpu: { label: "CPU %", color: CHART_COLORS.cpu },
+              memory: { label: "Memory %", color: CHART_COLORS.memory },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data?.resources || []} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-                <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.35} strokeDasharray="3 3" />
+                <CartesianGrid strokeOpacity={0.1} strokeDasharray="3 3" />
                 <XAxis dataKey="time" hide />
                 <YAxis width={32} />
                 <ChartTooltip content={<ChartTooltipContent />} />
@@ -181,18 +200,18 @@ export default function AnalyticsPanel() {
                   type="monotone"
                   dataKey="cpu"
                   name="CPU %"
-                  stroke="var(--color-cpu)"
-                  fill="var(--color-cpu)"
-                  fillOpacity={0.25}
+                  stroke={CHART_COLORS.cpu}
+                  fill={CHART_COLORS.cpu}
+                  fillOpacity={0.15}
                   isAnimationActive
                 />
                 <Area
                   type="monotone"
                   dataKey="memory"
                   name="Memory %"
-                  stroke="var(--color-memory)"
-                  fill="var(--color-memory)"
-                  fillOpacity={0.2}
+                  stroke={CHART_COLORS.memory}
+                  fill={CHART_COLORS.memory}
+                  fillOpacity={0.1}
                   isAnimationActive
                 />
               </AreaChart>
@@ -202,22 +221,22 @@ export default function AnalyticsPanel() {
       </Card>
 
       {/* ── 4. Credit Balance Trend (Area) ─────────────────────── */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Credit Balance Trend</CardTitle>
+          <CardTitle className="text-base font-heading">Credit Balance Trend</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              balance: { label: "Net Balance", color: "#4F46E5" },
-              earned: { label: "Earned", color: "#84CC16" },
-              spent: { label: "Spent", color: "#A855F7" },
+              balance: { label: "Net Balance", color: CHART_COLORS.balance },
+              earned: { label: "Earned", color: CHART_COLORS.earned },
+              spent: { label: "Spent", color: CHART_COLORS.spent },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={history?.creditTrend || []} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-                <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.35} strokeDasharray="3 3" />
+                <CartesianGrid strokeOpacity={0.1} strokeDasharray="3 3" />
                 <XAxis dataKey="time" hide />
                 <YAxis width={40} />
                 <ChartTooltip content={<ChartTooltipContent />} />
@@ -226,9 +245,9 @@ export default function AnalyticsPanel() {
                   type="monotone"
                   dataKey="balance"
                   name="Net Balance"
-                  stroke="var(--color-chart-1)"
-                  fill="var(--color-chart-1)"
-                  fillOpacity={0.15}
+                  stroke={CHART_COLORS.balance}
+                  fill={CHART_COLORS.balance}
+                  fillOpacity={0.1}
                   strokeWidth={2}
                   isAnimationActive
                 />
@@ -239,16 +258,16 @@ export default function AnalyticsPanel() {
       </Card>
 
       {/* ── 5. Credits Donut ───────────────────────────────────── */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Credits Overview</CardTitle>
+          <CardTitle className="text-base font-heading">Credits Overview</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              earned: { label: "Earned", color: "#84CC16" },
-              spent: { label: "Spent", color: "#A855F7" },
+              earned: { label: "Earned", color: CHART_COLORS.earned },
+              spent: { label: "Spent", color: CHART_COLORS.spent },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -264,7 +283,7 @@ export default function AnalyticsPanel() {
                   isAnimationActive
                 >
                   {creditsPie.map((entry) => (
-                    <Cell key={entry.key} fill={`var(--color-${entry.key})`} />
+                    <Cell key={entry.key} fill={CHART_COLORS[entry.key as keyof typeof CHART_COLORS]} />
                   ))}
                 </Pie>
                 <Legend />
@@ -275,28 +294,28 @@ export default function AnalyticsPanel() {
       </Card>
 
       {/* ── 6. Agent Activity (Bar) ────────────────────────────── */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Agent Activity</CardTitle>
+          <CardTitle className="text-base font-heading">Agent Activity</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ChartContainer
             className="aspect-auto w-full h-[240px]"
             config={{
-              idle: { label: "Idle", color: "#22C55E" },
-              busy: { label: "Busy", color: "#3B82F6" },
-              offline: { label: "Offline", color: "#EF4444" },
+              idle: { label: "Idle", color: CHART_COLORS.idle },
+              busy: { label: "Busy", color: CHART_COLORS.busy },
+              offline: { label: "Offline", color: CHART_COLORS.offline },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={agentBars} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-                <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.35} strokeDasharray="3 3" />
+                <CartesianGrid strokeOpacity={0.1} strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis width={28} allowDecimals={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value" name="Agents" isAnimationActive radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" name="Agents" isAnimationActive radius={[8, 8, 0, 0]}>
                   {agentBars.map((entry) => (
-                    <Cell key={entry.key} fill={`var(--color-${entry.key})`} />
+                    <Cell key={entry.key} fill={CHART_COLORS[entry.key as keyof typeof CHART_COLORS]} />
                   ))}
                 </Bar>
               </BarChart>

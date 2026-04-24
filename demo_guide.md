@@ -42,3 +42,20 @@ If you want to absolutely floor your advisor:
 2. Tell your advisor: "Node 2 just suffered a fatal hardware crash in our simulated datacenter."
 3. Wait exactly **15 seconds**. 
 4. The remaining Nodes (1 and 3) will auto-detect the orphaned tasks in the database and re-queue them. You will see Nodes 1 and 3 instantly pick up the slack and finish those lost jobs automatically!
+
+### Step 6: Multi-Step Pipeline (The "Real-World workflows" Pitch)
+1. On the web dashboard, click **Submit New Job**.
+2. Toggle the UI to **Multi-Step Pipeline**.
+3. Create 3 distinct steps:
+   - **Step 1:** Name: `Install`, Command: `pip install -r requirements.txt`
+   - **Step 2:** Name: `Test`, Command: `pytest`
+   - **Step 3:** Name: `Deploy`, Command: `python deploy.py`
+4. Leave Array Task Nodes at 1, and hit **Submit Pipeline**.
+5. *Wait for execution to start, or show the pipeline UI.*
+
+**The Pitch (1 Minute Script):** 
+>"Now, let me show you our Multi-Step Pipeline feature. In the real world, CI/CD isn't just about running one giant script; it's about orchestrating complex, sequential workflows—like installing dependencies, running unit tests, and finally deploying. 
+>
+>Instead of a user forcing everything into one black-box script, they define discrete steps right here in our dashboard. When I click submit, the Hive agent takes over and executes each phase strictly in order. 
+>
+>Crucially, if the 'Test' step throws a non-zero exit code because a unit test failed, the entire pipeline immediately halts at that exact point and logs the failure. It never blindly attempts the 'Deploy' step. This ensures safety, saves valuable compute credits from being wasted, and perfectly mirrors industry-standard tools like GitHub Actions or Jenkins—but it's built natively on top of our custom distributed compute grid!"
