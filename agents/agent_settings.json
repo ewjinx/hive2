@@ -1,54 +1,5 @@
 {
     "API_URL": "http://localhost:8000/api/v1",
-    "TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzQ1NTI4NTAsInN1YiI6ImFoc2FucmFuYTN4QGdtYWlsLmNvbSJ9.gNJRk1afVCyJhiBr7IxOHj8q5Ri-_zadVD-mJ73czcU",
-    "AGENTS": [
-        {
-            "name": "Node-1",
-            "cpu_cores": 11,
-            "ram_gb": 7.95,
-            "status": "idle",
-            "id": 9,
-            "owner_id": 2,
-            "token": "e2Z5e4gj64yUIr9-tkCrQFBhY675QhXBWI3vtMbNEQo",
-            "last_heartbeat": null,
-            "current_cpu_usage": 0.0,
-            "current_ram_usage": 0.0
-        },
-        {
-            "name": "Node-2",
-            "cpu_cores": 11,
-            "ram_gb": 7.95,
-            "status": "idle",
-            "id": 10,
-            "owner_id": 2,
-            "token": "tBtG0ZWHvC1AN5tkxTFJJeD0XRTemImqKHRM-bUmuBk",
-            "last_heartbeat": null,
-            "current_cpu_usage": 0.0,
-            "current_ram_usage": 0.0
-        },
-        {
-            "name": "Node-3",
-            "cpu_cores": 11,
-            "ram_gb": 7.95,
-            "status": "idle",
-            "id": 11,
-            "owner_id": 2,
-            "token": "hneVu_WTeTuMF95reEbSOl14-yiRYz8qmRng5fsWVzc",
-            "last_heartbeat": null,
-            "current_cpu_usage": 0.0,
-            "current_ram_usage": 0.0
-        },
-        {
-            "name": "Node-4",
-            "cpu_cores": 11,
-            "ram_gb": 7.95,
-            "status": "idle",
-            "id": 12,
-            "owner_id": 2,
-            "token": "AL04U_Q035iuZZqlIg-p_a0CWeXPl2FN5RsF2KlxHFU",
-            "last_heartbeat": null,
-            "current_cpu_usage": 0.0,
-            "current_ram_usage": 0.0
-        }
-    ]
+    "TOKEN": "",
+    "AGENTS": []
 }

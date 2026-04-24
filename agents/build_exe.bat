@@ -9,7 +9,8 @@ pip install -r requirements.txt
 :: --noconsole prevents the command prompt window from showing
 :: --onefile packages everything into a single .exe
 :: --name sets the output executable name
-pyinstaller --noconsole --onefile --name "HiveAgent" desktop_app.py
+:: --add-data includes the ui/ web assets
+pyinstaller --noconsole --onefile --name "HiveAgent" --add-data "ui;ui" desktop_app.py
 
 echo.
 echo Build complete. The executable can be found in the "dist" folder.

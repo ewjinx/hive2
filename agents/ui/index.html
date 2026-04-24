@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hive Node Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <div class="app-shell" id="app">
+
+    <!-- ═══════════════ HEADER ═══════════════ -->
+    <header class="header">
+      <div class="header-left">
+        <svg class="logo-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="45" fill="#ABF600" stroke="#191A23" stroke-width="3"/>
+          <path d="M35 40 L50 30 L65 40 L65 60 L50 70 L35 60Z" fill="#191A23" opacity="0.85"/>
+          <path d="M50 30 L50 70 M35 40 L65 60 M65 40 L35 60" stroke="#ABF600" stroke-width="2"/>
+        </svg>
+        <span class="logo-text">Hive<sup>™</sup></span>
+        <span class="subtitle">Node Manager</span>
+      </div>
+      <div class="header-right">
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+          <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ═══════════════ LOGIN VIEW ═══════════════ -->
+    <div id="loginView" class="view active">
+      <div class="auth-container">
+        <div class="auth-card animate-in">
+          <div class="auth-header">
+            <h1>Welcome back</h1>
+            <p>Sign in to manage your Hive compute nodes.</p>
+          </div>
+
+          <form class="auth-form" id="loginForm" onsubmit="return false;">
+            <div class="form-group">
+              <label class="label" for="loginEmail">Email</label>
+              <input class="input" id="loginEmail" type="email" placeholder="you@company.com" required autocomplete="email">
+            </div>
+            <div class="form-group">
+              <label class="label" for="loginPassword">Password</label>
+              <input class="input" id="loginPassword" type="password" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+
+            <div id="loginError" class="auth-error"></div>
+
+            <button type="submit" class="btn btn-primary btn-lg btn-full" id="loginBtn">
+              Log In
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="footer">
+        © 2026 Hive. All rights reserved.
+      </div>
+    </div>
+
+    <!-- ═══════════════ DASHBOARD VIEW ═══════════════ -->
+    <div id="dashView" class="view">
+      <div class="main-content">
+        <!-- Dashboard header -->
+        <div class="dash-header">
+          <div>
+            <h1>Your Nodes</h1>
+            <p class="text-sm text-muted mt-1">Manage your distributed compute nodes</p>
+          </div>
+          <div class="dash-actions">
+            <button class="btn btn-primary btn-sm" id="addNodeBtn">+ Add Node</button>
+            <button class="btn btn-destructive btn-sm" id="logoutBtn">Logout</button>
+          </div>
+        </div>
+
+        <!-- Nodes list container -->
+        <div id="nodesList" class="nodes-list">
+          <!-- Nodes rendered by JS -->
+        </div>
+
+        <!-- Empty state -->
+        <div id="emptyState" class="empty-state animate-in" style="display:none;">
+          <div class="empty-state-emoji">🖥️</div>
+          <div class="empty-state-title">No nodes configured</div>
+          <div class="empty-state-desc">Click "+ Add Node" to register a compute node and start earning credits.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>
