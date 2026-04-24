@@ -2,9 +2,9 @@
 
 :root {
   /* Primary Accent */
-  --primary: #ABF600;
-  --primary-hover: #BCFB20;
-  --primary-dark: #89C500;
+  --primary: #3CCD71;
+  --primary-hover: #4DD882;
+  --primary-dark: #2BA85C;
   --primary-foreground: #000000;
 
   /* Backgrounds */
@@ -30,7 +30,7 @@
   --border-medium: rgba(25, 26, 35, 0.15);
 
   /* Ring */
-  --ring: #ABF600;
+  --ring: #3CCD71;
 
   /* Status */
   --status-idle: #FACC15;
@@ -354,7 +354,7 @@ h1, h2, h3 {
 
 .input:focus {
   border-color: var(--ring);
-  box-shadow: 0 0 0 3px rgba(171, 246, 0, 0.3);
+  box-shadow: 0 0 0 3px rgba(60, 205, 113, 0.3);
 }
 
 .input-sm {
@@ -416,13 +416,13 @@ h1, h2, h3 {
 }
 
 .badge-online {
-  background: rgba(171, 246, 0, 0.15);
-  color: #559915;
+  background: rgba(60, 205, 113, 0.15);
+  color: #1E8A4E;
 }
 
 .dark .badge-online {
-  background: rgba(171, 246, 0, 0.2);
-  color: #ABF600;
+  background: rgba(60, 205, 113, 0.2);
+  color: #3CCD71;
 }
 
 .badge-dot {
@@ -563,7 +563,7 @@ input[type="range"]::-moz-range-thumb {
 
 .node-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  border-color: rgba(171, 246, 0, 0.3);
+  border-color: rgba(60, 205, 113, 0.3);
 }
 
 .node-header {

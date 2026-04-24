@@ -285,7 +285,7 @@ class TrayManager:
         if state == "running":
             color = "orange"
         elif state == "idle":
-            color = "#ABF600"
+            color = "#3CCD71"
 
         image = Image.new('RGBA', (64, 64), (255, 255, 255, 0))
         dc = ImageDraw.Draw(image)

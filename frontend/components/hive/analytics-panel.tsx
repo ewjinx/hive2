@@ -51,15 +51,15 @@ const fetcher = (url: string) => api.get(url).then((r) => r.data)
 const CHART_COLORS = {
   pending: "#FACC15",
   running: "#3B82F6",
-  completed: "#ABF600",   // Grass.io lime green
+  completed: "#3CCD71",   // Grass.io lime green
   failed: "#E21212",      // Grass.io error
   duration: "#6366F1",
   cpu: "#F97316",
   memory: "#14B8A6",
-  earned: "#ABF600",
+  earned: "#3CCD71",
   spent: "#A855F7",
   balance: "#3B82F6",
-  idle: "#ABF600",
+  idle: "#3CCD71",
   busy: "#3B82F6",
   offline: "#E21212",
 }

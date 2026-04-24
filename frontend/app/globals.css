@@ -6,12 +6,12 @@
 /* ─── Grass.io-Inspired Design Tokens ─────────────────────────── */
 
 :root {
-  /* Primary Accent: Lime Green */
-  --grass-primary: #ABF600;
-  --grass-primary-hover: #BCFB20;
-  --grass-primary-dark: #89C500;
-  --grass-secondary: #F2FED1;
-  --grass-secondary-dark: #DBFB9A;
+  /* Primary Accent: Green */
+  --grass-primary: #3CCD71;
+  --grass-primary-hover: #4DD882;
+  --grass-primary-dark: #2BA85C;
+  --grass-secondary: #D1F2DD;
+  --grass-secondary-dark: #9AFBB8;
 
   /* Backgrounds */
   --background: #FAFAFA;
@@ -21,8 +21,8 @@
   --popover: #FFFFFF;
   --popover-foreground: #000000;
 
-  /* Primary (Lime Green) */
-  --primary: #ABF600;
+  /* Primary (Green) */
+  --primary: #3CCD71;
   --primary-foreground: #000000;
 
   /* Secondary */
@@ -40,10 +40,10 @@
   /* Borders & Input */
   --border: #191A23;
   --input: #191A23;
-  --ring: #ABF600;
+  --ring: #3CCD71;
 
   /* Charts */
-  --chart-1: #ABF600;
+  --chart-1: #3CCD71;
   --chart-2: #22C55E;
   --chart-3: #FACC15;
   --chart-4: #EF4444;
@@ -66,12 +66,12 @@
   /* Sidebar */
   --sidebar: #FAFAFA;
   --sidebar-foreground: #000000;
-  --sidebar-primary: #ABF600;
+  --sidebar-primary: #3CCD71;
   --sidebar-primary-foreground: #000000;
   --sidebar-accent: #F6F9F2;
   --sidebar-accent-foreground: #000000;
   --sidebar-border: #E5E5E5;
-  --sidebar-ring: #ABF600;
+  --sidebar-ring: #3CCD71;
 
   /* Online Status */
   --online: #22C55E;
@@ -89,7 +89,7 @@
   --popover: #272727;
   --popover-foreground: #FFFFFF;
 
-  --primary: #ABF600;
+  --primary: #3CCD71;
   --primary-foreground: #000000;
 
   --secondary: #404040;
@@ -104,9 +104,9 @@
 
   --border: #444444;
   --input: #444444;
-  --ring: #ABF600;
+  --ring: #3CCD71;
 
-  --chart-1: #ABF600;
+  --chart-1: #3CCD71;
   --chart-2: #22C55E;
   --chart-3: #FACC15;
   --chart-4: #EF4444;
@@ -114,12 +114,12 @@
 
   --sidebar: #1D1D1D;
   --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #ABF600;
+  --sidebar-primary: #3CCD71;
   --sidebar-primary-foreground: #000000;
   --sidebar-accent: #333333;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: #444444;
-  --sidebar-ring: #ABF600;
+  --sidebar-ring: #3CCD71;
   --online: #22C55E;
 }
 
@@ -195,7 +195,7 @@
 
   /* Lime green glow for active states */
   .grass-glow {
-    box-shadow: 0 0 20px rgba(171, 246, 0, 0.15);
+    box-shadow: 0 0 20px rgba(60, 205, 113, 0.15);
   }
 
   /* Grass.io-style pill button */
