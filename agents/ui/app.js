@@ -1,12 +1,13 @@
 // ─── Hive Node Manager — Frontend Logic ──────────────────────
-// Communicates with the local Flask API on the same origin.
+// Uses Server-Sent Events (SSE) for live updates — no polling flicker.
 
 const API = '';  // Same origin
 
 // ─── State ───────────────────────────────────────────────────
 
 let systemInfo = { max_cpu: 8, max_ram: 16 };
-let pollInterval = null;
+let eventSource = null;
+let currentNodes = [];  // Track current state to avoid unnecessary re-renders
 
 // ─── DOM Helpers ─────────────────────────────────────────────
 
@@ -59,8 +60,9 @@ $('#loginForm').addEventListener('submit', async (e) => {
     if (res.ok && data.ok) {
       showView('dash');
       await fetchSystemInfo();
-      refreshNodes();
-      startPolling();
+      // Initial fetch then start SSE stream
+      await refreshNodes();
+      startSSE();
     } else {
       err.textContent = data.error || 'Login failed';
     }
@@ -78,7 +80,8 @@ $('#logoutBtn').addEventListener('click', async () => {
   try {
     await fetch(`${API}/api/logout`, { method: 'POST' });
   } catch {}
-  stopPolling();
+  stopSSE();
+  currentNodes = [];
   showView('login');
   $('#loginEmail').value = '';
   $('#loginPassword').value = '';
@@ -95,7 +98,8 @@ $('#addNodeBtn').addEventListener('click', async () => {
     const res = await fetch(`${API}/api/nodes`, { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
-      refreshNodes();
+      // SSE will pick up the new node automatically
+      await refreshNodes();
     } else {
       alert(data.error || 'Failed to create node');
     }
@@ -118,81 +122,161 @@ async function fetchSystemInfo() {
   } catch {}
 }
 
-// ─── Refresh Nodes ───────────────────────────────────────────
+// ─── SSE (Server-Sent Events) ────────────────────────────────
+// Replaces polling — server pushes updates only when data changes.
+
+function startSSE() {
+  stopSSE();
+  eventSource = new EventSource(`${API}/api/nodes/stream`);
+
+  eventSource.onmessage = (event) => {
+    try {
+      const nodes = JSON.parse(event.data);
+      updateNodes(nodes);
+    } catch {}
+  };
+
+  eventSource.onerror = () => {
+    // Auto-reconnect is built into EventSource
+    // Just log for debugging
+    console.log('SSE connection lost, reconnecting...');
+  };
+}
+
+function stopSSE() {
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+}
+
+// ─── Refresh Nodes (one-time fetch) ─────────────────────────
 
 async function refreshNodes() {
   try {
     const res = await fetch(`${API}/api/nodes`);
     if (!res.ok) return;
     const nodes = await res.json();
-    renderNodes(nodes);
+    updateNodes(nodes);
   } catch {}
 }
 
-// ─── Render Nodes ────────────────────────────────────────────
+// ─── Smart DOM Updates ───────────────────────────────────────
+// Only updates elements that actually changed — no flicker.
 
-function renderNodes(nodes) {
+function updateNodes(nodes) {
   const container = $('#nodesList');
   const empty = $('#emptyState');
 
   if (!nodes || nodes.length === 0) {
     container.innerHTML = '';
     empty.style.display = 'block';
+    currentNodes = [];
     return;
   }
 
   empty.style.display = 'none';
 
-  container.innerHTML = nodes.map((node, idx) => {
-    const isOnline = node.status !== 'offline';
-    const statusClass = node.live_status === 'Error' ? 'offline' :
-                        (node.live_status || '').includes('Running') ? 'running' :
-                        isOnline ? 'idle' : 'offline';
-    const displayStatus = node.live_status || (isOnline ? 'Idle' : 'Offline');
+  // If node count changed, full re-render needed
+  const nodeIds = nodes.map(n => String(n.id));
+  const currentIds = currentNodes.map(n => String(n.id));
+  const structureChanged = nodeIds.length !== currentIds.length ||
+                           nodeIds.some((id, i) => id !== currentIds[i]);
 
-    return `
-      <div class="node-card animate-in" style="animation-delay: ${idx * 0.05}s" data-id="${node.id}">
-        <div class="node-header">
-          <div class="flex items-center gap-3">
-            <input class="node-name-input" value="${escapeHtml(node.name)}" data-field="name" data-id="${node.id}">
-            <span class="badge badge-${statusClass}">
-              <span class="badge-dot"></span>
-              ${escapeHtml(displayStatus)}
-            </span>
-          </div>
-          <div class="node-controls">
-            <label class="toggle" title="${isOnline ? 'Turn off' : 'Turn on'}">
-              <input type="checkbox" ${isOnline ? 'checked' : ''} onchange="toggleNode('${node.id}')">
-              <span class="toggle-track"></span>
-              <span class="toggle-thumb"></span>
-            </label>
-          </div>
+  if (structureChanged) {
+    // Full render
+    container.innerHTML = nodes.map((node, idx) => buildNodeCard(node, idx)).join('');
+  } else {
+    // Smart update — only patch changed fields
+    nodes.forEach((node) => {
+      const card = container.querySelector(`.node-card[data-id="${node.id}"]`);
+      if (!card) return;
+
+      const old = currentNodes.find(n => String(n.id) === String(node.id));
+      if (!old) return;
+
+      // Update status badge if changed
+      if (old.live_status !== node.live_status || old.status !== node.status) {
+        const isOnline = node.status !== 'offline';
+        const statusClass = getStatusClass(node);
+        const displayStatus = node.live_status || (isOnline ? 'Idle' : 'Offline');
+
+        const badge = card.querySelector('.badge');
+        if (badge) {
+          badge.className = `badge badge-${statusClass}`;
+          const dot = badge.querySelector('.badge-dot');
+          const text = dot ? dot.outerHTML + '\n              ' + escapeHtml(displayStatus) : escapeHtml(displayStatus);
+          badge.innerHTML = `<span class="badge-dot"></span>\n              ${escapeHtml(displayStatus)}`;
+        }
+
+        // Update toggle
+        const toggle = card.querySelector('.toggle input');
+        if (toggle) {
+          toggle.checked = isOnline;
+        }
+      }
+
+      // Don't update name/sliders if user is interacting — leave those alone
+    });
+  }
+
+  currentNodes = JSON.parse(JSON.stringify(nodes));
+}
+
+function getStatusClass(node) {
+  if (node.live_status && node.live_status.startsWith('Error')) return 'offline';
+  if (node.live_status && node.live_status.includes('Running')) return 'running';
+  if (node.status !== 'offline') return 'idle';
+  return 'offline';
+}
+
+function buildNodeCard(node, idx) {
+  const isOnline = node.status !== 'offline';
+  const statusClass = getStatusClass(node);
+  const displayStatus = node.live_status || (isOnline ? 'Idle' : 'Offline');
+
+  return `
+    <div class="node-card animate-in" style="animation-delay: ${idx * 0.05}s" data-id="${node.id}">
+      <div class="node-header">
+        <div class="flex items-center gap-3">
+          <input class="node-name-input" value="${escapeHtml(node.name)}" data-field="name" data-id="${node.id}">
+          <span class="badge badge-${statusClass}">
+            <span class="badge-dot"></span>
+            ${escapeHtml(displayStatus)}
+          </span>
         </div>
-
-        <div class="node-sliders">
-          <div class="slider-group">
-            <span class="slider-label">CPU</span>
-            <input type="range" min="1" max="${systemInfo.max_cpu}" step="1" value="${node.cpu_cores}"
-                   data-field="cpu" data-id="${node.id}"
-                   oninput="this.closest('.slider-group').querySelector('.slider-value').textContent = this.value + ' cores'">
-            <span class="slider-value">${node.cpu_cores} cores</span>
-          </div>
-          <div class="slider-group">
-            <span class="slider-label">RAM</span>
-            <input type="range" min="1" max="${Math.round(systemInfo.max_ram)}" step="0.5" value="${node.ram_gb}"
-                   data-field="ram" data-id="${node.id}"
-                   oninput="this.closest('.slider-group').querySelector('.slider-value').textContent = parseFloat(this.value).toFixed(1) + ' GB'">
-            <span class="slider-value">${parseFloat(node.ram_gb).toFixed(1)} GB</span>
-          </div>
-        </div>
-
-        <div class="node-actions">
-          <button class="btn btn-primary btn-sm flex-1" onclick="applySettings('${node.id}')">Apply Settings</button>
-          <button class="btn btn-destructive btn-sm" onclick="deleteNode('${node.id}')">Delete</button>
+        <div class="node-controls">
+          <label class="toggle" title="${isOnline ? 'Turn off' : 'Turn on'}">
+            <input type="checkbox" ${isOnline ? 'checked' : ''} onchange="toggleNode('${node.id}')">
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
         </div>
       </div>
-    `;
-  }).join('');
+
+      <div class="node-sliders">
+        <div class="slider-group">
+          <span class="slider-label">CPU</span>
+          <input type="range" min="1" max="${systemInfo.max_cpu}" step="1" value="${node.cpu_cores}"
+                 data-field="cpu" data-id="${node.id}"
+                 oninput="this.closest('.slider-group').querySelector('.slider-value').textContent = this.value + ' cores'">
+          <span class="slider-value">${node.cpu_cores} cores</span>
+        </div>
+        <div class="slider-group">
+          <span class="slider-label">RAM</span>
+          <input type="range" min="1" max="${Math.round(systemInfo.max_ram)}" step="0.5" value="${node.ram_gb}"
+                 data-field="ram" data-id="${node.id}"
+                 oninput="this.closest('.slider-group').querySelector('.slider-value').textContent = parseFloat(this.value).toFixed(1) + ' GB'">
+          <span class="slider-value">${parseFloat(node.ram_gb).toFixed(1)} GB</span>
+        </div>
+      </div>
+
+      <div class="node-actions">
+        <button class="btn btn-primary btn-sm flex-1" onclick="applySettings('${node.id}')">Apply Settings</button>
+        <button class="btn btn-destructive btn-sm" onclick="deleteNode('${node.id}')">Delete</button>
+      </div>
+    </div>
+  `;
 }
 
 // ─── Node Actions ────────────────────────────────────────────
@@ -200,7 +284,7 @@ function renderNodes(nodes) {
 async function toggleNode(id) {
   try {
     await fetch(`${API}/api/nodes/${id}/toggle`, { method: 'POST' });
-    setTimeout(refreshNodes, 300);
+    // SSE will push the update
   } catch {}
 }
 
@@ -220,7 +304,6 @@ async function applySettings(id) {
     });
     const data = await res.json();
     if (res.ok) {
-      // Brief success flash
       const btn = card.querySelector('.btn-primary');
       btn.textContent = '✓ Applied';
       setTimeout(() => { btn.textContent = 'Apply Settings'; }, 1500);
@@ -237,22 +320,8 @@ async function deleteNode(id) {
 
   try {
     await fetch(`${API}/api/nodes/${id}`, { method: 'DELETE' });
-    refreshNodes();
+    // SSE will push the update
   } catch {}
-}
-
-// ─── Polling ─────────────────────────────────────────────────
-
-function startPolling() {
-  stopPolling();
-  pollInterval = setInterval(refreshNodes, 2000);
-}
-
-function stopPolling() {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
-  }
 }
 
 // ─── Init ────────────────────────────────────────────────────
@@ -265,8 +334,8 @@ async function init() {
       if (data.logged_in) {
         showView('dash');
         await fetchSystemInfo();
-        refreshNodes();
-        startPolling();
+        await refreshNodes();
+        startSSE();
         return;
       }
     }

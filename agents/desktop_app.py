@@ -12,7 +12,8 @@ import requests
 import psutil
 import pystray
 from PIL import Image, ImageDraw
-from flask import Flask, send_from_directory, jsonify, request as flask_request
+import json
+from flask import Flask, send_from_directory, jsonify, request as flask_request, Response
 
 import config
 from main import manager
@@ -122,6 +123,39 @@ def api_list_nodes():
             'live_status': live_status,
         })
     return jsonify(nodes)
+
+
+# ── API: SSE Stream (replaces polling) ───────────────────────
+
+@app.route('/api/nodes/stream')
+def api_nodes_stream():
+    """Server-Sent Events endpoint — pushes node updates only when data changes."""
+    def generate():
+        last_payload = None
+        while True:
+            nodes = []
+            for agent in config.AGENTS:
+                aid = agent.get('id')
+                live_status = manager.statuses.get(aid, 'Idle') if agent.get('status') != 'offline' else 'Offline'
+                nodes.append({
+                    'id': aid,
+                    'name': agent.get('name', 'Unknown'),
+                    'status': agent.get('status', 'offline'),
+                    'cpu_cores': agent.get('cpu_cores', 1),
+                    'ram_gb': agent.get('ram_gb', 1.0),
+                    'live_status': live_status,
+                })
+            payload = json.dumps(nodes, sort_keys=True)
+            # Only send if data actually changed
+            if payload != last_payload:
+                last_payload = payload
+                yield f"data: {payload}\n\n"
+            time.sleep(2)
+
+    return Response(generate(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+    })
 
 
 # ── API: Add Node ────────────────────────────────────────────
