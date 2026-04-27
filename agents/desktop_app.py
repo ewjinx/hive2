@@ -364,31 +364,37 @@ def main():
     if config.TOKEN:
         manager.start()
 
-    # Try pywebview for native window, fall back to browser
-    try:
-        import webview
-        tray = TrayManager()
-        tray_thread = threading.Thread(target=tray.run, daemon=True)
-        tray_thread.start()
+    import platform
+    is_macos = platform.system() == "Darwin"
 
-        window = webview.create_window(
-            'Hive Node Manager',
-            f'http://localhost:{PORT}',
-            width=440,
-            height=640,
-            resizable=True,
-            min_size=(400, 500),
-        )
-        webview.start()
-        tray.stop_app()
+    if not is_macos:
+        # On non-macOS, try pywebview for a native window
+        try:
+            import webview
+            tray = TrayManager()
+            tray_thread = threading.Thread(target=tray.run, daemon=True)
+            tray_thread.start()
 
-    except ImportError:
-        # pywebview not available — open in browser + run tray
-        import webbrowser
-        webbrowser.open(f"http://localhost:{PORT}")
+            window = webview.create_window(
+                'Hive Node Manager',
+                f'http://localhost:{PORT}',
+                width=440,
+                height=640,
+                resizable=True,
+                min_size=(400, 500),
+            )
+            webview.start()
+            tray.stop_app()
+            return
+        except ImportError:
+            pass
 
-        tray = TrayManager()
-        tray.run()  # Blocking — keeps process alive
+    # macOS (or pywebview unavailable): open browser + run tray on main thread
+    import webbrowser
+    webbrowser.open(f"http://localhost:{PORT}")
+
+    tray = TrayManager()
+    tray.run()  # Blocking on main thread — required by macOS AppKit
 
 
 if __name__ == "__main__":

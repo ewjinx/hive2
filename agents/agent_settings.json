@@ -1,16 +1,16 @@
 {
     "API_URL": "http://localhost:8000/api/v1",
-    "TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzcwNjMxNzcsInN1YiI6InJhbmFvdmVyaGVyZUBnbWFpbC5jb20ifQ.ptgUFa0dvcmdv43rBLpVOLPj1_zNBX6rOsLc_a2pQec",
+    "TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzczMTQ4NzEsInN1YiI6ImV4YW1wbGVAZXhhbXBsZS5jb20ifQ.fHnk07mlsRbOz70FC__qvBMiotVwLHcYAhFzeb764-8",
     "AGENTS": [
         {
             "name": "Node-1",
-            "cpu_cores": 7,
-            "ram_gb": 4.5,
+            "cpu_cores": 9,
+            "ram_gb": 8.0,
             "status": "idle",
-            "id": 13,
-            "owner_id": 3,
-            "token": "0drv9Jsp__BySyZ7Sx59ILzUKoGWZ7IOmKju6O1VWy4",
-            "last_heartbeat": "2026-04-24T20:06:03.680756Z",
+            "id": 1,
+            "owner_id": 2,
+            "token": "_RDKCQKdUV5_KzXsUdU_Nyn6iAUy0GfJddf6OG1qs_w",
+            "last_heartbeat": null,
             "current_cpu_usage": 0.0,
             "current_ram_usage": 0.0
         }

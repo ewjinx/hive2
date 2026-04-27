@@ -48,7 +48,7 @@ async def startup_event():
         if not system_user:
             user_in = schemas.UserCreate(
                 email="system@hive.io",
-                password="systempassword_do_not_use",
+                password="System!Password1",
                 is_active=True,
                 is_superuser=True
             )
