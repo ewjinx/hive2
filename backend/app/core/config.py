@@ -7,10 +7,10 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # Database
-    DATABASE_URL: str
+    DATABASE_URL: str = "postgresql://hive:hivepassword@localhost:5432/hive_db"
     
     # Auth
-    SECRET_KEY: str
+    SECRET_KEY: str = "default_insecure_secret_key_for_development"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
@@ -19,5 +19,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        # Don't error if .env file is missing
+        env_file_encoding = 'utf-8'
 
 settings = Settings()

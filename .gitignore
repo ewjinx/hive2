@@ -40,7 +40,7 @@ backend/.env
 frontend/.env
 frontend/.env.local
 agents/.env
-agents/config.py
+agents/agent_settings.json
 
 # Docker
 docker-compose.override.yml
