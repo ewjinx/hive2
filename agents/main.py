@@ -81,13 +81,13 @@ class NodeManager:
                 resp = requests.post(
                     f"{config.API_URL}/agents/{aid}/heartbeat", 
                     json={"current_cpu_usage": cpu, "current_ram_usage": ram, "status": "busy" if active_jobs else "idle"}, 
-                    headers=headers, timeout=5
+                    headers=headers, timeout=30
                 )
                 
                 resp = requests.get(
                     f"{config.API_URL}/jobs", 
                     params={"agent_id": aid, "status": "running"}, 
-                    headers=headers, timeout=5
+                    headers=headers, timeout=30
                 )
                 
                 if resp.status_code == 200:
