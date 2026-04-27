@@ -42,7 +42,7 @@ export function AuthCard({
 
     try {
       if (variant === "signup") {
-        await api.post("/api/users/", { email, password })
+        await api.post("/api/users", { email, password })
         toast.success("Account created! Logging you in...")
       }
 
