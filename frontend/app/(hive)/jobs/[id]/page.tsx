@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +9,7 @@ import { LogPanel } from "@/components/hive/log-panel"
 import { PipelinePanel } from "@/components/hive/pipeline-panel"
 import { StatusDot } from "@/components/hive/status-indicator"
 import { useParams } from "next/navigation"
-import { CheckCircle, AlertCircle, Download } from "lucide-react"
+import { CheckCircle, AlertCircle, Download, Loader2 } from "lucide-react"
 import api from "@/lib/api"
 import { useWebSocket } from "@/hooks/useWebSocket"
 
@@ -19,6 +20,7 @@ export default function JobDetailPage() {
   const id = params.id
   const { data: swrData, mutate } = useSWR(`/api/jobs/${id}`, fetcher, { refreshInterval: 2500 })
   const { data: wsData } = useWebSocket(`/api/v1/ws/jobs/${id}/logs`)
+  const [downloading, setDownloading] = useState(false)
 
   const data = wsData?.status ? wsData : swrData
 
@@ -31,7 +33,30 @@ export default function JobDetailPage() {
     mutate()
   }
 
+  async function handleDownloadResults() {
+    try {
+      setDownloading(true)
+      const response = await api.get(`/api/jobs/${id}/results`, {
+        responseType: "blob",
+      })
+      const blob = new Blob([response.data], { type: "text/plain" })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `hive_job_${id}_results.txt`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Failed to download results:", err)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   const hasPipelineSteps = data?.pipeline_steps && data.pipeline_steps.length > 0
+  const isTerminal = ["success", "failed", "system_error", "abandoned"].includes(data?.status)
 
   return (
     <div className="space-y-6">
@@ -78,11 +103,17 @@ export default function JobDetailPage() {
           <Button onClick={resume} disabled={data?.status !== "paused"}>
             Resume
           </Button>
-          <Button variant="secondary" asChild disabled={data?.status !== "success"}>
-            <a href={`/api/jobs/${id}/artifact`} download>
+          <Button
+            variant="secondary"
+            onClick={handleDownloadResults}
+            disabled={!isTerminal || downloading}
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
               <Download className="h-4 w-4 mr-2" />
-              Download Result
-            </a>
+            )}
+            {downloading ? "Preparing..." : "Download Results"}
           </Button>
         </CardContent>
       </Card>
