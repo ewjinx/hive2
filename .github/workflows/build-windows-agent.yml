@@ -1,0 +1,40 @@
+name: Build Windows Agent
+
+on:
+  workflow_dispatch:  # Manual trigger from GitHub UI
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: agents
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        working-directory: agents
+        run: |
+          pyinstaller --noconsole --onefile --name "HiveAgent" --add-data "ui;ui" desktop_app.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HiveAgent-Windows
+          path: agents/dist/HiveAgent.exe
+
+      - name: Upload to latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v1.0.0 agents/dist/HiveAgent.exe --clobber
