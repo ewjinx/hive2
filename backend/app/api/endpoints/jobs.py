@@ -63,6 +63,10 @@ def create_job(
         
     if array_size > 1:
         for i in range(1, array_size + 1):
+            child_env = {
+                "HIVE_ARRAY_INDEX": str(i),
+                "HIVE_ARRAY_SIZE": str(array_size),
+            }
             child_in = schemas.JobCreate(
                 run_command=run_command,
                 build_command=build_command,
@@ -70,11 +74,11 @@ def create_job(
                 ram_req=ram_req,
                 steps=parsed_steps,
                 array_size=1,
-                env_vars={"HIVE_ARRAY_INDEX": str(i)}
+                env_vars=child_env
             )
             child_job = crud.crud_job.create(db, obj_in=child_in, owner_id=current_user.id)
             child_job.parent_id = job.id
-            child_job.env_vars = {"HIVE_ARRAY_INDEX": str(i)}
+            child_job.env_vars = child_env
             db.add(child_job)
             
         job.status = "running" # Parent acts globally as a live container

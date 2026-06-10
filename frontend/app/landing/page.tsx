@@ -63,12 +63,12 @@ export default function LandingPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/download" className="grass-btn bg-primary text-black px-8 py-4 w-full sm:w-auto text-lg hover:bg-primary-hover hover:grass-glow flex items-center justify-center gap-2">
+              <a href="https://github.com/ewjinx/hive2/releases" target="_blank" rel="noopener noreferrer" className="grass-btn bg-primary text-black px-8 py-4 w-full sm:w-auto text-lg hover:bg-primary-hover hover:grass-glow flex items-center justify-center gap-2">
                 Download Node <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link href="/docs" className="grass-btn bg-transparent border border-border text-white px-8 py-4 w-full sm:w-auto text-lg hover:bg-card hover:border-primary/50 flex items-center justify-center gap-2">
-                Read the Docs
-              </Link>
+              </a>
+              <a href="https://github.com/ewjinx/hive2" target="_blank" rel="noopener noreferrer" className="grass-btn bg-transparent border border-border text-white px-8 py-4 w-full sm:w-auto text-lg hover:bg-card hover:border-primary/50 flex items-center justify-center gap-2">
+                View on GitHub
+              </a>
             </div>
           </div>
           

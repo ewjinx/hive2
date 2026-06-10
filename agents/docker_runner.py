@@ -3,8 +3,77 @@ import os
 import zipfile
 import shutil
 import time
+import json
+import math
 
 client = docker.from_env()
+
+
+def _split_test_cases(work_dir: str, env_vars: dict):
+    """
+    Automatically partition tests/test_inputs.json across array task nodes.
+    
+    Reads the 'cases' array from tests/test_inputs.json inside the extracted
+    work directory, determines which slice belongs to this node based on
+    HIVE_ARRAY_INDEX (1-based) and HIVE_ARRAY_SIZE, then overwrites the file
+    so the user's script only sees its assigned test cases.
+    
+    If test_inputs.json doesn't exist or env vars are missing, this is a no-op.
+    """
+    if not env_vars:
+        return
+    
+    array_index_str = env_vars.get("HIVE_ARRAY_INDEX")
+    array_size_str = env_vars.get("HIVE_ARRAY_SIZE")
+    
+    if not array_index_str or not array_size_str:
+        return
+    
+    array_index = int(array_index_str)   # 1-based
+    array_size = int(array_size_str)
+    
+    # Search for test_inputs.json in common locations
+    possible_paths = [
+        os.path.join(work_dir, "tests", "test_inputs.json"),
+        os.path.join(work_dir, "test_inputs.json"),
+    ]
+    
+    test_file = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            test_file = path
+            break
+    
+    if not test_file:
+        return
+    
+    try:
+        with open(test_file, "r") as f:
+            data = json.load(f)
+        
+        cases = data.get("cases", [])
+        if not cases:
+            return
+        
+        total_cases = len(cases)
+        
+        # Chunk-based distribution: divide cases as evenly as possible
+        # Node 1 gets indices [0..chunk), Node 2 gets [chunk..2*chunk), etc.
+        chunk_size = math.ceil(total_cases / array_size)
+        start = (array_index - 1) * chunk_size
+        end = min(start + chunk_size, total_cases)
+        
+        my_cases = cases[start:end]
+        
+        # Overwrite the file with only this node's cases
+        data["cases"] = my_cases
+        with open(test_file, "w") as f:
+            json.dump(data, f, indent=4)
+        
+        print(f"[HIVE] Node #{array_index}/{array_size}: assigned {len(my_cases)}/{total_cases} test cases (indices {start}-{end-1})")
+        
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        print(f"[HIVE] Warning: could not split test cases: {e}")
 
 def run_job(job_id: int, zip_path: str, build_cmd: str, run_cmd: str, cpu_limit: int, ram_limit: float, log_callback=None, env_vars=None):
     """
@@ -29,8 +98,11 @@ def run_job(job_id: int, zip_path: str, build_cmd: str, run_cmd: str, cpu_limit:
                 if total_size > MAX_UNCOMPRESSED_SIZE:
                     raise ValueError("Malicious zip payload: exceeds 500MB uncompressed limit")
             zip_ref.extractall(work_dir)
+        
+        # 2. Split test cases across array nodes (no-op for non-array jobs)
+        _split_test_cases(work_dir, env_vars)
             
-        # 2. Build Image (if Dockerfile exists)
+        # 3. Build Image (if Dockerfile exists)
         if not os.path.exists(f"{work_dir}/Dockerfile"):
             with open(f"{work_dir}/Dockerfile", "w") as f:
                 f.write("FROM python:3.9-slim\nWORKDIR /app\nCOPY . /app\nRUN pip install -r requirements.txt || true\n")
@@ -150,7 +222,10 @@ def run_pipeline_job(job_id: int, zip_path: str, steps: list, cpu_limit: int, ra
                     raise ValueError("Malicious zip payload: exceeds 500MB uncompressed limit")
             zip_ref.extractall(work_dir)
         
-        # 2. Build Docker image
+        # 2. Split test cases across array nodes (no-op for non-array jobs)
+        _split_test_cases(work_dir, env_vars)
+        
+        # 3. Build Docker image
         if not os.path.exists(f"{work_dir}/Dockerfile"):
             with open(f"{work_dir}/Dockerfile", "w") as f:
                 f.write("FROM python:3.9-slim\nWORKDIR /app\nCOPY . /app\nRUN pip install -r requirements.txt || true\n")
